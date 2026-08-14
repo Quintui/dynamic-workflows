@@ -54,18 +54,48 @@ export type WorkflowStatus = "building" | "ready" | "invalid"
 
 export const WORKFLOW_STATUS_LABEL: Record<WorkflowStatus, string> = {
   building: "Building",
-  ready: "Ready",
+  // A registered definition is a persisted one — `addDynamicWorkflow()` writes
+  // it to the `workflowDefinitions` storage domain.
+  ready: "Saved",
   invalid: "Needs fixing",
 }
 
 export interface Workflow {
-  /** The tool call this came from — unique even when two share a workflow id. */
-  key: string
+  /** The workflow id. A draft and its saved row are the same entry. */
   id: string
   definition: WorkflowDraft
   status: WorkflowStatus
+  /** Whether it came back from storage, which also means it can be run. */
+  saved: boolean
   /** Validation errors from Mastra, when the definition was rejected. */
   issues?: string
+}
+
+/** A definition read back from storage, as `/api/workflows` returns it. */
+export interface StoredWorkflow {
+  id: string
+  description?: string
+  inputSchema?: JsonSchema
+  outputSchema?: JsonSchema
+  graph: GraphEntries
+  /** ISO timestamp of the last save. The list is ordered by it. */
+  updatedAt: string
+}
+
+/** One step's outcome inside a run, keyed in `WorkflowRun.steps` by step id. */
+export interface StepRun {
+  status: string
+  output?: unknown
+  error?: string
+}
+
+/** The result of running a workflow, as `/api/workflows/[id]/run` returns it. */
+export interface WorkflowRun {
+  runId?: string
+  status: string
+  result?: unknown
+  error?: string
+  steps: Record<string, StepRun>
 }
 
 /** The entry types that stand for one unit of work rather than plumbing. */
@@ -103,6 +133,69 @@ export function entryLabel(entry: GraphEntry): string {
     entry.id ??
     entry.type ??
     "step"
+  )
+}
+
+/** One field of a workflow's input, as the run form renders it. */
+export interface InputField {
+  name: string
+  /** `json` covers objects and arrays, which get a textarea. */
+  type: "string" | "number" | "boolean" | "json"
+  required: boolean
+  description?: string
+  /** Present when the schema pins the field to a fixed set of values. */
+  options?: string[]
+}
+
+function fieldType(property: Record<string, unknown>): InputField["type"] {
+  switch (property.type) {
+    case "number":
+    case "integer":
+      return "number"
+    case "boolean":
+      return "boolean"
+    case "string":
+      return "string"
+    default:
+      return "json"
+  }
+}
+
+/**
+ * Flattens a workflow's input JSON Schema into a flat list of fields. Only the
+ * top level is read — anything that isn't a primitive is handed to the form as
+ * raw JSON rather than being expanded into nested inputs.
+ */
+export function inputFields(schema: JsonSchema | undefined): InputField[] {
+  const properties = schema?.properties
+
+  if (!properties || typeof properties !== "object") {
+    return []
+  }
+
+  const required = new Set(
+    Array.isArray(schema?.required) ? (schema.required as string[]) : []
+  )
+
+  return Object.entries(properties as Record<string, unknown>).map(
+    ([name, value]) => {
+      const property = (
+        typeof value === "object" && value !== null ? value : {}
+      ) as Record<string, unknown>
+
+      return {
+        name,
+        type: fieldType(property),
+        required: required.has(name),
+        description:
+          typeof property.description === "string"
+            ? property.description
+            : undefined,
+        options: Array.isArray(property.enum)
+          ? property.enum.map(String)
+          : undefined,
+      }
+    }
   )
 }
 

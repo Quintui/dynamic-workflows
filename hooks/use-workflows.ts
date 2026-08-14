@@ -4,10 +4,10 @@ import * as React from "react"
 import { useChat } from "@ai-sdk/react"
 
 import { type CreateWorkflowToolPart } from "@/tools"
-import { type Workflow } from "@/lib/workflows"
+import { type StoredWorkflow, type Workflow } from "@/lib/workflows"
 import { useSharedChat } from "@/components/chat-context"
 
-function toWorkflow(part: CreateWorkflowToolPart): Workflow | null {
+function toDraft(part: CreateWorkflowToolPart): Workflow | null {
   const definition = part.input
 
   if (!definition?.id) {
@@ -15,7 +15,7 @@ function toWorkflow(part: CreateWorkflowToolPart): Workflow | null {
     return null
   }
 
-  const base = { key: part.toolCallId, id: definition.id, definition }
+  const base = { id: definition.id, definition, saved: false }
 
   switch (part.state) {
     case "input-streaming":
@@ -32,17 +32,13 @@ function toWorkflow(part: CreateWorkflowToolPart): Workflow | null {
   }
 }
 
-/**
- * Every workflow the agent has built in this conversation, oldest first. The
- * canvas and the workflow list both read from here, so they always show the
- * same thing as the chat.
- */
-export function useWorkflows() {
+/** Every `create_workflow` call in the conversation, oldest first. */
+function useDrafts() {
   const { chat } = useSharedChat()
   const { messages } = useChat({ chat })
 
   return React.useMemo(() => {
-    const workflows: Workflow[] = []
+    const drafts: Workflow[] = []
 
     for (const message of messages) {
       if (message.role !== "assistant") {
@@ -54,14 +50,86 @@ export function useWorkflows() {
           continue
         }
 
-        const workflow = toWorkflow(part)
+        const draft = toDraft(part)
 
-        if (workflow) {
-          workflows.push(workflow)
+        if (draft) {
+          drafts.push(draft)
         }
       }
     }
 
-    return workflows
+    return drafts
   }, [messages])
+}
+
+/** The saved workflows, refetched whenever the agent finishes saving one. */
+function useSaved(savedCount: number) {
+  const [saved, setSaved] = React.useState<StoredWorkflow[]>([])
+
+  React.useEffect(() => {
+    const controller = new AbortController()
+
+    async function load() {
+      try {
+        const response = await fetch("/api/workflows", {
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const body = (await response.json()) as { workflows?: StoredWorkflow[] }
+
+        setSaved(body.workflows ?? [])
+      } catch {
+        // An aborted or failed load just leaves the previous list in place.
+      }
+    }
+
+    load()
+
+    return () => controller.abort()
+  }, [savedCount])
+
+  return saved
+}
+
+/**
+ * Every workflow the agent has built, oldest first — the saved ones from
+ * storage plus whatever is still being written in the current conversation.
+ * The canvas and the workflow list both read from here.
+ *
+ * Saved workflows survive a reload; a draft only wins over its saved row while
+ * it's still streaming or after Mastra rejected it, because in both cases what
+ * the canvas shows isn't what a run would execute.
+ */
+export function useWorkflows(): Workflow[] {
+  const drafts = useDrafts()
+  const savedCount = drafts.filter((draft) => draft.status === "ready").length
+  const saved = useSaved(savedCount)
+
+  return React.useMemo(() => {
+    const workflows = new Map<string, Workflow>(
+      saved.map((workflow) => [
+        workflow.id,
+        {
+          id: workflow.id,
+          definition: workflow,
+          status: "ready" as const,
+          saved: true,
+        },
+      ])
+    )
+
+    for (const draft of drafts) {
+      if (draft.status === "ready" && workflows.has(draft.id)) {
+        continue
+      }
+
+      workflows.set(draft.id, draft)
+    }
+
+    return [...workflows.values()]
+  }, [drafts, saved])
 }

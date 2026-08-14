@@ -17,6 +17,7 @@
     "@base-ui/react": "^1.7.0",
     "@mastra/ai-sdk": "^1.8.0",
     "@mastra/core": "^1.58.0",
+    "@mastra/libsql": "^1.20.0",
     "@shadcn/react": "^0.3.0",
     "ai": "^7.0.58",
     "class-variance-authority": "^0.7.1",

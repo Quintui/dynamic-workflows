@@ -13,11 +13,13 @@ import {
   WrenchIcon,
 } from "lucide-react"
 
+import { cn } from "@/lib/utils"
 import {
   entryLabel,
   mappingKeys,
   type GraphEntries,
   type GraphEntry,
+  type StepRun,
 } from "@/lib/workflows"
 
 /**
@@ -27,7 +29,19 @@ import {
  * as slim chips instead of full cards.
  *
  * Entries stream in partially, so everything here tolerates missing fields.
+ *
+ * After a run, `steps` carries what each block did — the blocks that took part
+ * get an outline and their output, and the ones a branch skipped stay plain.
  */
+
+/** Run results keyed by step id, or nothing before the workflow has been run. */
+type Steps = Record<string, StepRun> | undefined
+
+const STEP_BORDER: Record<string, string> = {
+  success: "border-primary/50",
+  failed: "border-destructive/50",
+  suspended: "border-primary/50",
+}
 
 const BLOCK_ICON = {
   agent: BotIcon,
@@ -131,11 +145,22 @@ function Chip({
   )
 }
 
-function BlockCard({ entry }: { entry: GraphEntry }) {
+/** The key a run reports this entry's result under. */
+function stepRun(entry: GraphEntry, steps: Steps): StepRun | undefined {
+  return steps?.[entry.id ?? ""] ?? steps?.[entryLabel(entry)]
+}
+
+function BlockCard({ entry, steps }: { entry: GraphEntry; steps: Steps }) {
   const Icon = BLOCK_ICON[entry.type as keyof typeof BLOCK_ICON] ?? WrenchIcon
+  const run = stepRun(entry, steps)
 
   return (
-    <div className="w-full rounded-2xl border bg-card px-4 py-3 shadow-xs">
+    <div
+      className={cn(
+        "w-full rounded-2xl border bg-card px-4 py-3 shadow-xs",
+        run && STEP_BORDER[run.status]
+      )}
+    >
       <div className="flex items-center gap-2.5">
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted">
           <Icon className="size-3.5 text-muted-foreground" />
@@ -143,16 +168,41 @@ function BlockCard({ entry }: { entry: GraphEntry }) {
         <span className="truncate text-sm font-medium">
           {entryLabel(entry)}
         </span>
-        {entry.id && entry.id !== entryLabel(entry) && (
-          <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground">
-            {entry.id}
+        {run ? (
+          <span
+            className={cn(
+              "ml-auto shrink-0 text-xs",
+              run.status === "failed" ? "text-destructive" : "text-primary"
+            )}
+          >
+            {run.status}
           </span>
+        ) : (
+          entry.id &&
+          entry.id !== entryLabel(entry) && (
+            <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground">
+              {entry.id}
+            </span>
+          )
         )}
       </div>
       {entry.description && (
         <p className="mt-1.5 pl-8.5 text-sm text-muted-foreground">
           {entry.description}
         </p>
+      )}
+      {run?.error && (
+        <p className="mt-1.5 pl-8.5 text-xs text-destructive">{run.error}</p>
+      )}
+      {run?.output !== undefined && (
+        <details className="mt-1.5 pl-8.5">
+          <summary className="cursor-pointer text-xs text-muted-foreground">
+            Output
+          </summary>
+          <pre className="mt-1.5 overflow-x-auto rounded-xl bg-muted p-2.5 font-mono text-xs">
+            {JSON.stringify(run.output, null, 2)}
+          </pre>
+        </details>
       )}
     </div>
   )
@@ -161,9 +211,11 @@ function BlockCard({ entry }: { entry: GraphEntry }) {
 function Container({
   entry,
   kind,
+  steps,
 }: {
   entry: GraphEntry
   kind: keyof typeof CONTAINER
+  steps: Steps
 }) {
   const { icon: Icon, label } = CONTAINER[kind]
   const children = entry.steps ?? (entry.step ? [entry.step] : [])
@@ -190,7 +242,7 @@ function Container({
                   if {predicateText(entry.predicates?.[index])}
                 </span>
               )}
-              <BlockCard entry={child} />
+              <BlockCard entry={child} steps={steps} />
             </div>
           ) : null
         )}
@@ -199,12 +251,12 @@ function Container({
   )
 }
 
-function Entry({ entry }: { entry: GraphEntry }) {
+function Entry({ entry, steps }: { entry: GraphEntry; steps: Steps }) {
   switch (entry.type) {
     case "agent":
     case "tool":
     case "workflow":
-      return <BlockCard entry={entry} />
+      return <BlockCard entry={entry} steps={steps} />
     case "mapping": {
       const keys = mappingKeys(entry)
 
@@ -222,20 +274,26 @@ function Entry({ entry }: { entry: GraphEntry }) {
     case "conditional":
     case "foreach":
     case "loop":
-      return <Container entry={entry} kind={entry.type} />
+      return <Container entry={entry} kind={entry.type} steps={steps} />
     default:
       return null
   }
 }
 
-export function WorkflowGraph({ graph }: { graph: GraphEntries }) {
+export function WorkflowGraph({
+  graph,
+  steps,
+}: {
+  graph: GraphEntries
+  steps?: Record<string, StepRun>
+}) {
   return (
     <div className="flex w-full max-w-md flex-col items-center">
       {graph.map((entry, index) =>
         entry ? (
           <React.Fragment key={entry.id ?? index}>
             {index > 0 && <Connector />}
-            <Entry entry={entry} />
+            <Entry entry={entry} steps={steps} />
           </React.Fragment>
         ) : null
       )}

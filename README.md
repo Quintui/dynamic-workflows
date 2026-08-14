@@ -15,6 +15,8 @@ A minimal chatbot template built with Next.js, [Mastra](https://mastra.ai), the 
 - A [skill](#skills) that teaches the agent to author Mastra dynamic workflow definitions
 - A fixed palette of triage building blocks the agent arranges into workflows (see [The scenario](#the-scenario))
 - Workflows drawn on the canvas as the agent streams them (see [How it works](#how-it-works))
+- Definitions persisted in a local SQLite file, so they survive a reload and a restart
+- Any saved workflow runnable from the canvas, with each block's result drawn onto the graph
 - Tool part components kept as a reference for when tools are added back (see [Tool parts](#tool-parts))
 
 ## The scenario
@@ -76,13 +78,13 @@ The model list lives in [lib/models.ts](lib/models.ts) — the first entry is th
 
 ## Security
 
-The `/api/chat` route is **public and unauthenticated** — every request spends your OpenRouter credits. That's fine for a personal demo, but before putting it in front of real traffic you should:
+The `/api/chat` route is **public and unauthenticated** — every request spends your OpenRouter credits, and so does `/api/workflows/[id]/run` whenever the workflow contains an agent block. That's fine for a personal demo, but before putting it in front of real traffic you should:
 
 - **Rate limit it.** Add [Vercel Firewall / WAF](https://vercel.com/docs/security/vercel-waf) rules or [`@upstash/ratelimit`](https://github.com/upstash/ratelimit-js) so a single client can't drain your credits (denial-of-wallet).
 - **Cap spend.** Set an [OpenRouter credit limit](https://openrouter.ai/docs/api-reference/limits) on the key as a backstop.
 - **Add auth** if the chatbot isn't meant to be public.
 
-The route already validates the request body and restricts models to [lib/models.ts](lib/models.ts) — but that bounds a single request, not overall volume.
+Both routes validate their request body, the chat route restricts models to [lib/models.ts](lib/models.ts), and the run route only reaches workflows the agent saved — but that bounds a single request, not overall volume.
 
 ## How it works
 
@@ -94,13 +96,41 @@ registry, registers it with
 the UI draws it. Validation errors come back to the agent, which fixes them and
 calls again.
 
-- [mastra/index.ts](mastra/index.ts) registers the agents and the tool palette; [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts) is the chat agent, with its model resolved per request from the `RequestContext`.
+- [mastra/index.ts](mastra/index.ts) registers the agents, the tool palette and the SQLite store; [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts) is the chat agent, with its model resolved per request from the `RequestContext`.
 - [mastra/tools/create-workflow.ts](mastra/tools/create-workflow.ts) is the agent's only tool — it registers a definition and is what the canvas renders.
+- [mastra/stored-workflows.ts](mastra/stored-workflows.ts) is the way back out of storage: listing saved definitions, re-registering them on a cold process, and running one.
 - [mastra/skills/](mastra/skills) holds the agent's skills. See [Skills](#skills).
 - [app/api/chat/route.ts](app/api/chat/route.ts) validates the request and streams the agent with `handleChatStream` from `@mastra/ai-sdk`.
 - [components/chat-context.tsx](components/chat-context.tsx) holds one `Chat` instance shared by the whole workspace, following the [shared chat context](https://ai-sdk.dev/cookbook/next/use-shared-chat-context) pattern. The chat panel, the workflow list and the canvas all read the same messages.
-- [hooks/use-workflows.ts](hooks/use-workflows.ts) pulls every `create_workflow` call out of those messages; [components/workflow-graph.tsx](components/workflow-graph.tsx) draws one, streaming entries included.
+- [hooks/use-workflows.ts](hooks/use-workflows.ts) merges the saved workflows with every `create_workflow` call in those messages; [components/workflow-graph.tsx](components/workflow-graph.tsx) draws one, streaming entries included.
 - [tools/index.ts](tools/index.ts) holds the UI part types the components below are written against.
+
+## Saving and running
+
+`addDynamicWorkflow()` writes each definition to the `workflowDefinitions`
+[storage](https://mastra.ai/docs/storage/overview) domain — here a
+[`LibSQLStore`](https://mastra.ai/docs/workflows/dynamic-workflows) pointed at
+`mastra.db` in the project root. The workflow list reads from there rather than
+from the chat, so it survives a reload, a new chat and a restart. The file is
+gitignored; delete it to start over.
+
+Mastra only re-registers stored definitions from inside `startWorkers()`, which
+a Next.js app never calls, so [mastra/stored-workflows.ts](mastra/stored-workflows.ts)
+does that load itself, once per process, before listing or running anything.
+
+Saved workflows get a **Run** button on the canvas. It builds a form from the
+workflow's input JSON Schema, posts to `/api/workflows/[id]/run`, and Mastra
+executes it exactly as it would a code-defined workflow:
+
+```ts
+const run = await mastra.getWorkflow(id).createRun()
+const result = await run.start({ inputData })
+```
+
+Every step's status and output comes back with the result, so the blocks that
+took part are outlined on the graph with their output attached, and the ones a
+branch skipped stay plain. A workflow that fails mid-graph still returns a run —
+the failing block carries the error.
 
 ## Skills
 

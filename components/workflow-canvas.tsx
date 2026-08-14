@@ -1,7 +1,9 @@
 "use client"
 
-import { SparklesIcon, TriangleAlertIcon } from "lucide-react"
+import * as React from "react"
+import { PlayIcon, SparklesIcon, TriangleAlertIcon } from "lucide-react"
 
+import { useWorkflowRun } from "@/hooks/use-workflow-run"
 import {
   countBlocks,
   WORKFLOW_STATUS_LABEL,
@@ -15,7 +17,9 @@ import {
   PanelTitle,
 } from "@/components/panel"
 import { WorkflowGraph } from "@/components/workflow-graph"
+import { WorkflowRunPanel } from "@/components/workflow-run-panel"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import {
   Empty,
   EmptyDescription,
@@ -24,6 +28,70 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 
+/**
+ * One workflow, drawn and runnable. Mounted with the workflow id as its key, so
+ * switching workflows starts from a clean run rather than showing the previous
+ * one's step results against the new graph.
+ */
+function WorkflowView({ workflow }: { workflow: Workflow }) {
+  const [open, setOpen] = React.useState(false)
+  const { run, error, running, start } = useWorkflowRun(workflow.id)
+
+  const graph = workflow.definition.graph ?? []
+  const blocks = countBlocks(graph)
+
+  return (
+    <>
+      <PanelHeader>
+        <PanelTitle>{workflow.definition.id}</PanelTitle>
+        <div className="flex shrink-0 items-center gap-2">
+          <PanelHint>
+            {WORKFLOW_STATUS_LABEL[workflow.status]} · {blocks}{" "}
+            {blocks === 1 ? "block" : "blocks"}
+          </PanelHint>
+          {workflow.saved && (
+            <Button
+              size="xs"
+              variant={open ? "secondary" : "outline"}
+              aria-expanded={open}
+              onClick={() => setOpen((current) => !current)}
+            >
+              <PlayIcon />
+              Run
+            </Button>
+          )}
+        </div>
+      </PanelHeader>
+      <PanelContent className="canvas-grid overflow-y-auto">
+        <div className="flex flex-col items-center gap-4 px-6 py-10">
+          {workflow.definition.description && (
+            <p className="max-w-md text-center text-sm text-muted-foreground">
+              {workflow.definition.description}
+            </p>
+          )}
+          {workflow.issues && (
+            <Alert variant="destructive" className="max-w-md">
+              <TriangleAlertIcon />
+              <AlertTitle>This definition didn&apos;t validate</AlertTitle>
+              <AlertDescription>{workflow.issues}</AlertDescription>
+            </Alert>
+          )}
+          <WorkflowGraph graph={graph} steps={run?.steps} />
+        </div>
+      </PanelContent>
+      {open && (
+        <WorkflowRunPanel
+          workflow={workflow}
+          run={run}
+          error={error}
+          running={running}
+          onRun={start}
+        />
+      )}
+    </>
+  )
+}
+
 export function WorkflowCanvas({
   workflow,
   className,
@@ -31,53 +99,32 @@ export function WorkflowCanvas({
   workflow: Workflow | null
   className?: string
 }) {
-  const graph = workflow?.definition.graph ?? []
-  const blocks = countBlocks(graph)
-
   return (
     <Panel className={className}>
-      <PanelHeader>
-        <PanelTitle>
-          {workflow ? workflow.definition.id : "Workflow"}
-        </PanelTitle>
-        <PanelHint>
-          {workflow
-            ? `${WORKFLOW_STATUS_LABEL[workflow.status]} · ${blocks} ${blocks === 1 ? "block" : "blocks"}`
-            : "Nothing selected"}
-        </PanelHint>
-      </PanelHeader>
-      <PanelContent className="canvas-grid overflow-y-auto">
-        {workflow ? (
-          <div className="flex flex-col items-center gap-4 px-6 py-10">
-            {workflow.definition.description && (
-              <p className="max-w-md text-center text-sm text-muted-foreground">
-                {workflow.definition.description}
-              </p>
-            )}
-            {workflow.issues && (
-              <Alert variant="destructive" className="max-w-md">
-                <TriangleAlertIcon />
-                <AlertTitle>This definition didn&apos;t validate</AlertTitle>
-                <AlertDescription>{workflow.issues}</AlertDescription>
-              </Alert>
-            )}
-            <WorkflowGraph graph={graph} />
-          </div>
-        ) : (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SparklesIcon />
-              </EmptyMedia>
-              <EmptyTitle>No workflow open</EmptyTitle>
-              <EmptyDescription>
-                Describe how a tenant handles incoming tickets in the chat and
-                the workflow gets built here.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-      </PanelContent>
+      {workflow ? (
+        <WorkflowView key={workflow.id} workflow={workflow} />
+      ) : (
+        <>
+          <PanelHeader>
+            <PanelTitle>Workflow</PanelTitle>
+            <PanelHint>Nothing selected</PanelHint>
+          </PanelHeader>
+          <PanelContent className="canvas-grid overflow-y-auto">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SparklesIcon />
+                </EmptyMedia>
+                <EmptyTitle>No workflow open</EmptyTitle>
+                <EmptyDescription>
+                  Describe how a tenant handles incoming tickets in the chat and
+                  the workflow gets built here.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </PanelContent>
+        </>
+      )}
     </Panel>
   )
 }

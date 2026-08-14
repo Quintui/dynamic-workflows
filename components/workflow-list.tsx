@@ -39,13 +39,13 @@ const statusDot: Record<WorkflowStatus, string> = {
 
 export function WorkflowList({
   workflows,
-  selectedKey,
+  selectedId,
   onSelect,
   className,
 }: {
   workflows: Workflow[]
-  selectedKey: string | null
-  onSelect: (key: string) => void
+  selectedId: string | null
+  onSelect: (id: string) => void
   className?: string
 }) {
   return (
@@ -75,15 +75,15 @@ export function WorkflowList({
 
               return (
                 <Item
-                  key={workflow.key}
+                  key={workflow.id}
                   size="sm"
-                  variant={workflow.key === selectedKey ? "muted" : "default"}
+                  variant={workflow.id === selectedId ? "muted" : "default"}
                   className="cursor-pointer text-left hover:bg-muted/50"
                   render={
                     <button
                       type="button"
-                      aria-current={workflow.key === selectedKey}
-                      onClick={() => onSelect(workflow.key)}
+                      aria-current={workflow.id === selectedId}
+                      onClick={() => onSelect(workflow.id)}
                     />
                   }
                 >

@@ -22,18 +22,18 @@ import { WorkflowList } from "@/components/workflow-list"
  */
 function WorkspacePanes({ models }: { models: ChatModel[] }) {
   const workflows = useWorkflows()
-  const [pinnedKey, setPinnedKey] = React.useState<string | null>(null)
+  const [pinnedId, setPinnedId] = React.useState<string | null>(null)
 
   // Follow the newest workflow unless the user has picked one from the list.
-  const pinned = workflows.find((workflow) => workflow.key === pinnedKey)
+  const pinned = workflows.find((workflow) => workflow.id === pinnedId)
   const selected = pinned ?? workflows.at(-1) ?? null
 
   return (
     <div className="flex min-h-0 flex-1 gap-3 p-3">
       <WorkflowList
         workflows={workflows}
-        selectedKey={selected?.key ?? null}
-        onSelect={setPinnedKey}
+        selectedId={selected?.id ?? null}
+        onSelect={setPinnedId}
         className="hidden w-64 shrink-0 lg:flex"
       />
       <WorkflowCanvas workflow={selected} className="hidden flex-1 md:flex" />

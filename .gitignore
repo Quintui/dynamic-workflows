@@ -38,3 +38,7 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# mastra local sqlite store
+/mastra.db
+/mastra.db-*
