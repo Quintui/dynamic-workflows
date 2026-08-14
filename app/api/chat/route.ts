@@ -1,22 +1,16 @@
-import {
-  convertToModelMessages,
-  createUIMessageStreamResponse,
-  isStepCount,
-  streamText,
-  toUIMessageStream,
-  validateUIMessages,
-} from "ai"
+import { handleChatStream } from "@mastra/ai-sdk"
+import { RequestContext } from "@mastra/core/request-context"
+import { createUIMessageStreamResponse, type UIMessageChunk } from "ai"
 
 import { DEFAULT_MODEL, isModelAllowed } from "@/lib/models"
-import { getTools, type ChatUIMessage } from "@/tools"
+import { mastra } from "@/mastra"
+import { type ChatUIMessage } from "@/tools"
 
 export const maxDuration = 30
 
-const MAX_OUTPUT_TOKENS = 8192
-
-// This endpoint is public and spends your AI Gateway credits on every request.
+// This endpoint is public and spends your OpenRouter credits on every request.
 // Before exposing it to real traffic, add a rate limit (e.g. Vercel Firewall /
-// WAF or @upstash/ratelimit), authentication, and an AI Gateway spend limit.
+// WAF or @upstash/ratelimit), authentication, and an OpenRouter spend limit.
 // See the README "Security" section.
 export async function POST(req: Request) {
   let body: unknown
@@ -26,7 +20,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 })
   }
 
-  const model = (body as { model?: unknown })?.model
+  const { messages, model } = (body ?? {}) as {
+    messages?: ChatUIMessage[]
+    model?: unknown
+  }
+
   const modelId = typeof model === "string" ? model : DEFAULT_MODEL
 
   if (!isModelAllowed(modelId)) {
@@ -36,34 +34,31 @@ export async function POST(req: Request) {
     )
   }
 
-  const tools = getTools(modelId)
-
-  // Validate the shape of every message and tool part before trusting it.
-  let messages: ChatUIMessage[]
-  try {
-    const validated = await validateUIMessages<ChatUIMessage>({
-      messages: (body as { messages?: unknown })?.messages,
-      tools: tools as Parameters<typeof validateUIMessages>[0]["tools"],
-    })
-    messages = validated
-  } catch {
+  if (!Array.isArray(messages)) {
     return Response.json({ error: "Invalid messages." }, { status: 400 })
   }
 
-  const result = streamText({
-    model: modelId,
-    messages: await convertToModelMessages(messages),
-    tools,
-    stopWhen: isStepCount(5),
-    maxOutputTokens: MAX_OUTPUT_TOKENS,
-    abortSignal: req.signal,
+  // The agent reads this back to resolve the model for this request.
+  const requestContext = new RequestContext()
+  requestContext.set("model", modelId)
+
+  // @mastra/ai-sdk still ships AI SDK v5/v6 types while this app is on `ai` v7.
+  // The wire format matches; only the TypeScript types differ, so the messages
+  // going in and the stream coming out are cast at this boundary. Drop the casts
+  // once Mastra publishes v7 types.
+  const stream = await handleChatStream({
+    mastra,
+    agentId: "chatAgent",
+    params: {
+      messages: messages as never,
+      requestContext,
+    },
+    version: "v6",
+    sendSources: true,
+    onError: () => "Something went wrong. Please try again.",
   })
 
   return createUIMessageStreamResponse({
-    stream: toUIMessageStream({
-      stream: result.stream,
-      sendSources: true,
-      onError: () => "Something went wrong. Please try again.",
-    }),
+    stream: stream as unknown as ReadableStream<UIMessageChunk>,
   })
 }

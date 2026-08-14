@@ -13,11 +13,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.36",
-    "@ai-sdk/gateway": "^4.0.46",
-    "@ai-sdk/openai": "^4.0.36",
     "@ai-sdk/react": "^4.0.61",
     "@base-ui/react": "^1.7.0",
+    "@mastra/ai-sdk": "^1.8.0",
+    "@mastra/core": "^1.58.0",
     "@shadcn/react": "^0.3.0",
     "ai": "^7.0.58",
     "class-variance-authority": "^0.7.1",

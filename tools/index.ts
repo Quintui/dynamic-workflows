@@ -1,29 +1,43 @@
-import { type InferUITools, type UIDataTypes, type UIMessage } from "ai"
+import { type UIDataTypes, type UIMessage } from "ai"
 
-import { askUser } from "./ask_user"
-import { githubRepo } from "./github_repo"
-import { getWebSearch } from "./web_search"
-
-const baseTools = {
-  github_repo: githubRepo,
-  ask_user: askUser,
-}
-
-export function getTools(modelId: string) {
-  const webSearch = getWebSearch(modelId)
-  return webSearch ? { ...baseTools, web_search: webSearch } : baseTools
-}
-
-export type ChatUIMessage = UIMessage<
-  unknown,
-  UIDataTypes,
-  InferUITools<typeof baseTools> & {
-    web_search: {
-      input: { query?: string }
-      output: unknown
-    }
+/**
+ * The agent (see `mastra/agents/chat-agent.ts`) currently runs without tools.
+ *
+ * The tool implementations that shipped with the template were removed, but the
+ * UI part types below are kept on purpose: `components/parts/*` and
+ * `components/chat-message.tsx` still render them, so they act as a working
+ * reference for how tool calls should look once we add Mastra tools back.
+ *
+ * To bring one back: create the tool with `createTool` from `@mastra/core/tools`,
+ * register it on the agent's `tools`, and keep the matching entry here so the
+ * part component stays type-safe.
+ */
+export type ChatTools = {
+  github_repo: {
+    input: { repo: string }
+    output:
+      | { error: string }
+      | {
+          repo: string
+          description: string
+          stars: number
+          forks: number
+          openIssues: number
+          language: string
+          url: string
+        }
   }
->
+  ask_user: {
+    input: { questions: { question: string; choices: string[] }[] }
+    output: { question: string; answer: string }[]
+  }
+  web_search: {
+    input: { query?: string }
+    output: unknown
+  }
+}
+
+export type ChatUIMessage = UIMessage<unknown, UIDataTypes, ChatTools>
 
 export type ChatMessagePart = ChatUIMessage["parts"][number]
 

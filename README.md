@@ -1,6 +1,6 @@
 # chatbot-template
 
-A minimal chatbot template built with Next.js, the [AI SDK](https://ai-sdk.dev), [shadcn/ui](https://ui.shadcn.com), [shadcn/react](https://ui.shadcn.com/docs/react/message-scroller), [shadcn/typeset](https://ui.shadcn.com/docs/typeset) and the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway).
+A minimal chatbot template built with Next.js, [Mastra](https://mastra.ai), the [AI SDK](https://ai-sdk.dev), [shadcn/ui](https://ui.shadcn.com), [shadcn/react](https://ui.shadcn.com/docs/react/message-scroller), [shadcn/typeset](https://ui.shadcn.com/docs/typeset) and [OpenRouter](https://openrouter.ai).
 
 <p>
   <a href="https://github.com/shadcn-ui/chatbot-template/stargazers"><img src="https://shieldcn.dev/github/stars/shadcn-ui/chatbot-template.svg?variant=secondary&size=xs" alt="GitHub stars" /></a>
@@ -11,15 +11,8 @@ A minimal chatbot template built with Next.js, the [AI SDK](https://ai-sdk.dev),
 ## Features
 
 - Streaming chat with markdown rendering and shadcn/typeset
-- Tool calling example
-- Web search via each provider's built-in search tool
-- Human-in-the-loop questionnaire. The model can ask clarifying questions, answered with the shadcn questionnaire component
-
-## Deploy
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fshadcn-ui%2Fchatbot-template&project-name=chatbot-template&repository-name=chatbot-template)
-
-That's it — no configuration needed. Vercel deployments authenticate to the AI Gateway automatically via OIDC, and usage runs on your team's [AI Gateway credits](https://vercel.com/docs/ai-gateway/pricing).
+- A single [Mastra](https://mastra.ai) agent behind `/api/chat`, with per-request model selection
+- Tool part components kept as a reference for when tools are added back (see [Tool parts](#tool-parts))
 
 ## Local development
 
@@ -27,18 +20,11 @@ That's it — no configuration needed. Vercel deployments authenticate to the AI
 pnpm install
 ```
 
-Then give the app a gateway credential, either by pulling an OIDC token from your linked Vercel project:
-
-```bash
-vercel link
-vercel env pull
-```
-
-or by creating an API key in the Vercel dashboard (**AI Gateway → API Keys**) and adding it to `.env.local`:
+Create an API key at [openrouter.ai/keys](https://openrouter.ai/keys) and add it to `.env.local`:
 
 ```bash
 cp .env.example .env.local
-# then set AI_GATEWAY_API_KEY=...
+# then set OPENROUTER_API_KEY=...
 ```
 
 Start the dev server:
@@ -49,29 +35,32 @@ pnpm dev
 
 ## Configuration
 
-| Env var              | Required       | Description                                                  |
-| -------------------- | -------------- | ------------------------------------------------------------ |
-| `AI_GATEWAY_API_KEY` | Local dev only | AI Gateway API key. Not needed on Vercel deployments (OIDC). |
+| Env var              | Required | Description                                            |
+| -------------------- | -------- | ------------------------------------------------------ |
+| `OPENROUTER_API_KEY` | Yes      | OpenRouter API key, used by Mastra's model router.     |
 
-The model list lives in [lib/models.ts](lib/models.ts) — the first entry is the default model.
+The model list lives in [lib/models.ts](lib/models.ts) — the first entry is the default model. Ids are [OpenRouter slugs](https://openrouter.ai/models); the `openrouter/` prefix Mastra's router expects is added in [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts).
 
 ## Security
 
-The `/api/chat` route is **public and unauthenticated** — every request spends your AI Gateway credits. That's fine for a personal demo, but before putting it in front of real traffic you should:
+The `/api/chat` route is **public and unauthenticated** — every request spends your OpenRouter credits. That's fine for a personal demo, but before putting it in front of real traffic you should:
 
 - **Rate limit it.** Add [Vercel Firewall / WAF](https://vercel.com/docs/security/vercel-waf) rules or [`@upstash/ratelimit`](https://github.com/upstash/ratelimit-js) so a single client can't drain your credits (denial-of-wallet).
-- **Cap spend.** Set an [AI Gateway spend limit](https://vercel.com/docs/ai-gateway/observability-and-spend/budgets) as a backstop.
+- **Cap spend.** Set an [OpenRouter credit limit](https://openrouter.ai/docs/api-reference/limits) on the key as a backstop.
 - **Add auth** if the chatbot isn't meant to be public.
 
-The route already validates the request body, restricts models to [lib/models.ts](lib/models.ts), caps output tokens and step count, and aborts generation on client disconnect — but those bound a single request, not overall volume.
+The route already validates the request body and restricts models to [lib/models.ts](lib/models.ts) — but that bounds a single request, not overall volume.
 
 ## How it works
 
-- [app/api/chat/route.ts](app/api/chat/route.ts) streams responses with `streamText`
+- [mastra/index.ts](mastra/index.ts) registers the agents; [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts) is a single tool-less agent whose model is resolved per request from the `RequestContext`.
+- [app/api/chat/route.ts](app/api/chat/route.ts) validates the request and streams the agent with `handleChatStream` from `@mastra/ai-sdk`.
 - [components/chat.tsx](components/chat.tsx) renders the conversation with `useChat` and shadcn chat primitives.
-- [tools/](tools) defines the tools — one file per tool (the filename is the model-facing tool name), composed in [tools/index.ts](tools/index.ts): a server-executed GitHub repo lookup, the interactive `ask_user` questionnaire, and provider-native web search.
+- [tools/index.ts](tools/index.ts) holds no tools right now — only the UI part types the components below are written against.
 
 ## Tool parts
+
+> The agent currently runs without tools, so none of these render yet. They are kept intact as a working reference for wiring Mastra tools back in.
 
 Assistant messages are a list of typed parts. [components/chat-message.tsx](components/chat-message.tsx) switches on `part.type` and delegates each one to a component in [components/parts/](components/parts):
 
@@ -87,10 +76,11 @@ Tool parts move through states as the stream progresses — `input-streaming` �
 
 ### Adding your own tool
 
-1. Create `tools/<name>.ts` (the filename is the model-facing tool name) exporting a `tool()` with a `description`, an `inputSchema`, and an `execute` function (omit `execute` for tools the user answers in the UI, like `ask_user`), then register it in [tools/index.ts](tools/index.ts).
-2. Add a part component in [components/parts/](components/parts) and a `case "tool-<name>"` in [chat-message.tsx](components/chat-message.tsx).
+1. Create `tools/<name>.ts` exporting a `createTool()` from `@mastra/core/tools` with a `description`, an `inputSchema`, and an `execute` function, then register it on the agent's `tools` in [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts).
+2. Add the tool's `input`/`output` shape to `ChatTools` in [tools/index.ts](tools/index.ts) so the part types stay accurate.
+3. Add a part component in [components/parts/](components/parts) and a `case "tool-<name>"` in [chat-message.tsx](components/chat-message.tsx).
 
-Message types are inferred from the tool definitions via `InferUITools`, so `part.input` and `part.output` are fully typed in your part component — renaming a tool field is a build error, not a silent `undefined`.
+Step 2 is manual because the tools no longer live in an AI SDK `ToolSet` that `InferUITools` can read from.
 
 ## Adding components
 

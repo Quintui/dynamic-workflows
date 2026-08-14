@@ -6,7 +6,7 @@ import { Chat } from "@/components/chat"
 export const metadata: Metadata = {
   title: "Chat",
   description:
-    "A chatbot template built using shadcn/ui, shadcn/react and shadcn/typeset, powered by the Vercel AI Gateway.",
+    "A chatbot template built using shadcn/ui, shadcn/react and shadcn/typeset, powered by a Mastra agent on OpenRouter.",
 }
 
 export default function Page() {

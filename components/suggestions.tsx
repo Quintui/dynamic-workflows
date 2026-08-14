@@ -9,18 +9,19 @@ const suggestions = [
       "Tell me a short story. Format it in rich markdown: a title heading, a blockquote, a bulleted list, a table, and some bold and italic text.",
   },
   {
-    label: "What's new in Next.js",
+    label: "Explain a concept",
     prompt:
-      "Search the web for the latest Next.js release and summarize what's new.",
+      "Explain how server-sent events work, with a short example and a table of the alternatives.",
   },
   {
-    label: "Look up a repo",
-    prompt: "What are the GitHub stats for vercel/next.js?",
+    label: "Write some code",
+    prompt:
+      "Write a TypeScript function that debounces an async function, and explain the tricky parts.",
   },
   {
     label: "Plan a dinner",
     prompt:
-      "Help me plan a birthday dinner — ask me a few clarifying questions first, then suggest a menu.",
+      "Help me plan a birthday dinner for six people — suggest a three-course menu and a prep timeline.",
   },
 ]
 
