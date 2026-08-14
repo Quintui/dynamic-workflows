@@ -1,7 +1,10 @@
 import { type UIDataTypes, type UIMessage } from "ai"
 
 /**
- * The agent (see `mastra/agents/chat-agent.ts`) currently runs without tools.
+ * The agent (see `mastra/agents/chat-agent.ts`) defines no tools of its own. It
+ * does get Mastra's built-in `skill`, `skill_read` and `skill_search` tools
+ * because it has a skill attached; those calls have no part type here, so
+ * `components/chat-message.tsx` skips them.
  *
  * The tool implementations that shipped with the template were removed, but the
  * UI part types below are kept on purpose: `components/parts/*` and

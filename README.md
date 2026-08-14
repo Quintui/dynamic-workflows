@@ -54,13 +54,37 @@ The route already validates the request body and restricts models to [lib/models
 ## How it works
 
 - [mastra/index.ts](mastra/index.ts) registers the agents; [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts) is a single tool-less agent whose model is resolved per request from the `RequestContext`.
+- [mastra/skills/](mastra/skills) holds the agent's skills. See [Skills](#skills).
 - [app/api/chat/route.ts](app/api/chat/route.ts) validates the request and streams the agent with `handleChatStream` from `@mastra/ai-sdk`.
 - [components/chat.tsx](components/chat.tsx) renders the conversation with `useChat` and shadcn chat primitives.
 - [tools/index.ts](tools/index.ts) holds no tools right now — only the UI part types the components below are written against.
 
+## Skills
+
+Skills are markdown instructions the agent loads on demand. Mastra injects only
+each skill's name and description into the system prompt; the agent then calls
+its built-in `skill` / `skill_read` / `skill_search` tools to pull in the full
+body and any reference files.
+
+| Skill                                                             | Teaches the agent                                                     |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [dynamic-workflows](mastra/skills/dynamic-workflows/SKILL.md)     | How to author a Mastra dynamic workflow definition (the JSON document) |
+
+A skill is a directory with a `SKILL.md` — YAML frontmatter carrying `name` and
+`description`, then a markdown body — plus optional `references/*.md` files for
+detail the agent only needs sometimes. Add one by dropping the directory under
+`mastra/skills/` and listing its path in the agent's `skills` array. Paths
+resolve against the working directory, and
+[next.config.ts](next.config.ts) traces `mastra/skills/**` into the chat route
+so the markdown ships with a production build.
+
+The `dynamic-workflows` skill deliberately covers only the definition format —
+the schemas and the step graph. It leaves out the runtime APIs
+(`addDynamicWorkflow()`, storage, server routes), which the agent never calls.
+
 ## Tool parts
 
-> The agent currently runs without tools, so none of these render yet. They are kept intact as a working reference for wiring Mastra tools back in.
+> The agent defines no tools of its own, so none of these render yet. They are kept intact as a working reference for wiring Mastra tools back in. (The built-in skill tools do run, but have no part type here, so `chat-message.tsx` skips them.)
 
 Assistant messages are a list of typed parts. [components/chat-message.tsx](components/chat-message.tsx) switches on `part.type` and delegates each one to a component in [components/parts/](components/parts):
 
