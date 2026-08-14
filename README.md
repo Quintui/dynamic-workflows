@@ -15,7 +15,7 @@ A minimal chatbot template built with Next.js, [Mastra](https://mastra.ai), the 
 - A [skill](#skills) that teaches the agent to author Mastra dynamic workflow definitions
 - A fixed palette of triage building blocks the agent arranges into workflows (see [The scenario](#the-scenario))
 - Workflows drawn on the canvas as the agent streams them (see [How it works](#how-it-works))
-- Definitions persisted in a local SQLite file, so they survive a reload and a restart
+- Definitions persisted in a local SQLite file, so they survive a reload and a restart, and deletable from the list
 - Any saved workflow runnable from the canvas, with each block lighting up on the graph as it runs
 - Tool part components kept as a reference for when tools are added back (see [Tool parts](#tool-parts))
 
@@ -117,6 +117,13 @@ gitignored; delete it to start over.
 Mastra only re-registers stored definitions from inside `startWorkers()`, which
 a Next.js app never calls, so [mastra/stored-workflows.ts](mastra/stored-workflows.ts)
 does that load itself, once per process, before listing or running anything.
+
+Each row in the workflow list can be deleted. `DELETE /api/workflows/[id]`
+removes the stored definition and unregisters the live workflow — the same pair
+the client SDK's `dynamicWorkflow.delete()` performs, since the `Mastra`
+instance has no single call for it. The id stops resolving and is free to be
+used again. The first click on the button arms it and the second one deletes,
+because there's nothing to undo.
 
 Saved workflows get a **Run** button on the canvas. It builds a form from the
 workflow's input JSON Schema and posts to `/api/workflows/[id]/run`, where

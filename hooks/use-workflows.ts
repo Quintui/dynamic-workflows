@@ -65,6 +65,7 @@ function useDrafts() {
 /** The saved workflows, refetched whenever the agent finishes saving one. */
 function useSaved(savedCount: number) {
   const [saved, setSaved] = React.useState<StoredWorkflow[]>([])
+  const [reloads, setReloads] = React.useState(0)
 
   React.useEffect(() => {
     const controller = new AbortController()
@@ -90,27 +91,61 @@ function useSaved(savedCount: number) {
     load()
 
     return () => controller.abort()
-  }, [savedCount])
+  }, [savedCount, reloads])
 
-  return saved
+  const reload = React.useCallback(() => setReloads((n) => n + 1), [])
+
+  return { saved, reload }
 }
 
 /**
  * Every workflow the agent has built, oldest first — the saved ones from
- * storage plus whatever is still being written in the current conversation.
- * The canvas and the workflow list both read from here.
+ * storage plus whatever is still being written in the current conversation —
+ * and a way to delete one. The canvas and the workflow list both read from
+ * here.
  *
  * Saved workflows survive a reload; a draft only wins over its saved row while
  * it's still streaming or after Mastra rejected it, because in both cases what
  * the canvas shows isn't what a run would execute.
  */
-export function useWorkflows(): Workflow[] {
+export function useWorkflows() {
   const drafts = useDrafts()
   const savedCount = drafts.filter((draft) => draft.status === "ready").length
-  const saved = useSaved(savedCount)
+  const { saved, reload } = useSaved(savedCount)
+  // The conversation still holds the `create_workflow` call for a workflow that
+  // has since been deleted, so deleted ids are held here to keep that draft
+  // from putting the row back. An id the agent builds again comes back through
+  // storage, which is what clears it.
+  const [deleted, setDeleted] = React.useState<string[]>([])
 
-  return React.useMemo(() => {
-    const workflows = new Map<string, Workflow>(
+  const remove = React.useCallback(
+    async (id: string) => {
+      setDeleted((current) => [...current, id])
+
+      try {
+        const response = await fetch(
+          `/api/workflows/${encodeURIComponent(id)}`,
+          { method: "DELETE" }
+        )
+
+        if (!response.ok) {
+          // Put it back — it's still there.
+          setDeleted((current) => current.filter((one) => one !== id))
+        }
+      } catch {
+        setDeleted((current) => current.filter((one) => one !== id))
+      } finally {
+        reload()
+      }
+    },
+    [reload]
+  )
+
+  const workflows = React.useMemo(() => {
+    const savedIds = new Set(saved.map((workflow) => workflow.id))
+    const gone = new Set(deleted.filter((id) => !savedIds.has(id)))
+
+    const merged = new Map<string, Workflow>(
       saved.map((workflow) => [
         workflow.id,
         {
@@ -123,13 +158,19 @@ export function useWorkflows(): Workflow[] {
     )
 
     for (const draft of drafts) {
-      if (draft.status === "ready" && workflows.has(draft.id)) {
+      if (gone.has(draft.id)) {
         continue
       }
 
-      workflows.set(draft.id, draft)
+      if (draft.status === "ready" && merged.has(draft.id)) {
+        continue
+      }
+
+      merged.set(draft.id, draft)
     }
 
-    return [...workflows.values()]
-  }, [drafts, saved])
+    return [...merged.values()]
+  }, [drafts, saved, deleted])
+
+  return { workflows, remove }
 }

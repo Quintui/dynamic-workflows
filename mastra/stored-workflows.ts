@@ -148,6 +148,23 @@ function toSteps(steps: unknown): Record<string, StepRun> {
   return Object.fromEntries(entries)
 }
 
+/**
+ * Deletes a saved workflow: the stored definition goes, and the live
+ * registration with it, so the id stops resolving and is free to be used again.
+ * This is the pair the client SDK's `dynamicWorkflow.delete()` performs — there
+ * is no single call for it on the `Mastra` instance.
+ */
+export async function deleteStoredWorkflow(id: string): Promise<void> {
+  await loadStoredWorkflows()
+
+  const store = await definitions()
+
+  await store?.delete(id)
+  // Only clears this process's registry. Runs already in flight keep the graph
+  // they started with.
+  mastra.removeWorkflow(id)
+}
+
 /** One event off `run.stream()`, as far as the UI cares about it. */
 interface StepChunk {
   type: string

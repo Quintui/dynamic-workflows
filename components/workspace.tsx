@@ -21,7 +21,7 @@ import { WorkflowList } from "@/components/workflow-list"
  * whatever the agent has built without any state of their own.
  */
 function WorkspacePanes({ models }: { models: ChatModel[] }) {
-  const workflows = useWorkflows()
+  const { workflows, remove } = useWorkflows()
   const [pinnedId, setPinnedId] = React.useState<string | null>(null)
 
   // Follow the newest workflow unless the user has picked one from the list.
@@ -34,6 +34,11 @@ function WorkspacePanes({ models }: { models: ChatModel[] }) {
         workflows={workflows}
         selectedId={selected?.id ?? null}
         onSelect={setPinnedId}
+        onDelete={(id) => {
+          // Deleting the pinned workflow drops back to following the newest.
+          setPinnedId((current) => (current === id ? null : current))
+          remove(id)
+        }}
         className="hidden w-64 shrink-0 lg:flex"
       />
       <WorkflowCanvas workflow={selected} className="hidden flex-1 md:flex" />
