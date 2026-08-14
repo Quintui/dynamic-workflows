@@ -118,6 +118,12 @@ Mastra only re-registers stored definitions from inside `startWorkers()`, which
 a Next.js app never calls, so [mastra/stored-workflows.ts](mastra/stored-workflows.ts)
 does that load itself, once per process, before listing or running anything.
 
+The canvas follows whatever the agent built last until you pick a row from the
+list. **New workflow** in the canvas header clears both sides — an empty canvas
+and a fresh conversation — and then follows the next workflow that gets built.
+It's the only thing that clears the canvas: **New Chat** ends the conversation
+but leaves the open workflow alone.
+
 Each row in the workflow list can be deleted. `DELETE /api/workflows/[id]`
 removes the stored definition and unregisters the live workflow — the same pair
 the client SDK's `dynamicWorkflow.delete()` performs, since the `Mastra`

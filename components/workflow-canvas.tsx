@@ -1,7 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { PlayIcon, SparklesIcon, TriangleAlertIcon } from "lucide-react"
+import {
+  PlayIcon,
+  PlusIcon,
+  SparklesIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 
 import { useWorkflowRun } from "@/hooks/use-workflow-run"
 import {
@@ -33,7 +38,13 @@ import {
  * switching workflows starts from a clean run rather than showing the previous
  * one's step results against the new graph.
  */
-function WorkflowView({ workflow }: { workflow: Workflow }) {
+function WorkflowView({
+  workflow,
+  onNew,
+}: {
+  workflow: Workflow
+  onNew: () => void
+}) {
   const [open, setOpen] = React.useState(false)
   const { run, steps, error, running, start } = useWorkflowRun(workflow.id)
 
@@ -49,6 +60,10 @@ function WorkflowView({ workflow }: { workflow: Workflow }) {
             {WORKFLOW_STATUS_LABEL[workflow.status]} · {blocks}{" "}
             {blocks === 1 ? "block" : "blocks"}
           </PanelHint>
+          <Button size="xs" variant="ghost" onClick={onNew}>
+            <PlusIcon />
+            New workflow
+          </Button>
           {workflow.saved && (
             <Button
               size="xs"
@@ -95,15 +110,17 @@ function WorkflowView({ workflow }: { workflow: Workflow }) {
 
 export function WorkflowCanvas({
   workflow,
+  onNew,
   className,
 }: {
   workflow: Workflow | null
+  onNew: () => void
   className?: string
 }) {
   return (
     <Panel className={className}>
       {workflow ? (
-        <WorkflowView key={workflow.id} workflow={workflow} />
+        <WorkflowView key={workflow.id} workflow={workflow} onNew={onNew} />
       ) : (
         <>
           <PanelHeader>
