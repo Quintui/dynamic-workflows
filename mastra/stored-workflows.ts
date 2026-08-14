@@ -1,9 +1,10 @@
 import {
+  STEP_RUNNING,
   type GraphEntries,
   type JsonSchema,
+  type RunEvent,
   type StepRun,
   type StoredWorkflow,
-  type WorkflowRun,
 } from "@/lib/workflows"
 
 import { mastra } from "."
@@ -147,32 +148,110 @@ function toSteps(steps: unknown): Record<string, StepRun> {
   return Object.fromEntries(entries)
 }
 
+/** One event off `run.stream()`, as far as the UI cares about it. */
+interface StepChunk {
+  type: string
+  payload?: {
+    id?: string
+    status?: string
+    output?: unknown
+  }
+}
+
 /**
- * Runs a saved workflow to completion. Failures inside the workflow come back
- * as a result with `status: "failed"` rather than as a thrown error — only an
- * unknown workflow id throws.
+ * A block starting or reporting a result. Everything else the workflow stream
+ * emits — workflow-level markers, token usage, per-iteration progress — is left
+ * out, because the canvas draws blocks.
  */
-export async function runStoredWorkflow(
+function toStepEvent(chunk: StepChunk): RunEvent | null {
+  const stepId = chunk.payload?.id
+
+  if (!stepId) {
+    return null
+  }
+
+  switch (chunk.type) {
+    case "workflow-step-start":
+      return { type: "step", stepId, step: { status: STEP_RUNNING } }
+    case "workflow-step-result":
+    case "workflow-step-suspended":
+      return {
+        type: "step",
+        stepId,
+        step: {
+          status: chunk.payload?.status ?? "success",
+          output: chunk.payload?.output,
+        },
+      }
+    default:
+      return null
+  }
+}
+
+/**
+ * Runs a saved workflow, reporting each block as it starts and finishes.
+ *
+ * `run.start()` would only resolve at the end, which tells you nothing while a
+ * long workflow is in flight, so this uses `run.stream()` and writes the events
+ * out as newline-delimited JSON. The final `finish` event carries the whole run
+ * — including the per-step errors the mid-stream events don't have — so the UI
+ * can replace what it built up with the authoritative result.
+ *
+ * A workflow that fails mid-graph still finishes with a run. Only an unknown
+ * workflow id throws.
+ */
+export async function streamStoredWorkflow(
   id: string,
   inputData: Record<string, unknown>
-): Promise<WorkflowRun> {
+): Promise<ReadableStream<Uint8Array>> {
   await loadStoredWorkflows()
 
-  const workflow = mastra.getWorkflow(id)
-  const run = await workflow.createRun()
-  const result = (await run.start({ inputData })) as {
-    status: string
-    result?: unknown
-    error?: unknown
-    steps?: unknown
-    runId?: string
-  }
+  const run = await mastra.getWorkflow(id).createRun()
+  const stream = run.stream({ inputData })
+  const encoder = new TextEncoder()
 
-  return {
-    runId: result.runId,
-    status: result.status,
-    result: result.result,
-    error: result.error ? String(result.error) : undefined,
-    steps: toSteps(result.steps),
-  }
+  return new ReadableStream({
+    async start(controller) {
+      function send(event: RunEvent) {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`))
+      }
+
+      try {
+        for await (const chunk of stream) {
+          const event = toStepEvent(chunk as StepChunk)
+
+          if (event) {
+            send(event)
+          }
+        }
+
+        const result = (await stream.result) as {
+          status: string
+          result?: unknown
+          error?: unknown
+          steps?: unknown
+        }
+
+        send({
+          type: "finish",
+          run: {
+            runId: run.runId,
+            status: result.status,
+            result: result.result,
+            error: result.error ? String(result.error) : undefined,
+            steps: toSteps(result.steps),
+          },
+        })
+      } catch (error) {
+        console.error(`The run of workflow ${id} failed`, error)
+
+        send({
+          type: "error",
+          message: error instanceof Error ? error.message : "The run failed.",
+        })
+      } finally {
+        controller.close()
+      }
+    },
+  })
 }

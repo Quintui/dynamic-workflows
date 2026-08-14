@@ -16,7 +16,9 @@ import {
 import { cn } from "@/lib/utils"
 import {
   entryLabel,
+  findStep,
   mappingKeys,
+  STEP_RUNNING,
   type GraphEntries,
   type GraphEntry,
   type StepRun,
@@ -30,14 +32,16 @@ import {
  *
  * Entries stream in partially, so everything here tolerates missing fields.
  *
- * After a run, `steps` carries what each block did — the blocks that took part
- * get an outline and their output, and the ones a branch skipped stay plain.
+ * During and after a run, `steps` carries what each block is doing — the blocks
+ * that took part get an outline and their output as the events arrive, and the
+ * ones a branch skipped stay plain.
  */
 
 /** Run results keyed by step id, or nothing before the workflow has been run. */
 type Steps = Record<string, StepRun> | undefined
 
 const STEP_BORDER: Record<string, string> = {
+  [STEP_RUNNING]: "border-primary/50",
   success: "border-primary/50",
   failed: "border-destructive/50",
   suspended: "border-primary/50",
@@ -145,14 +149,9 @@ function Chip({
   )
 }
 
-/** The key a run reports this entry's result under. */
-function stepRun(entry: GraphEntry, steps: Steps): StepRun | undefined {
-  return steps?.[entry.id ?? ""] ?? steps?.[entryLabel(entry)]
-}
-
 function BlockCard({ entry, steps }: { entry: GraphEntry; steps: Steps }) {
   const Icon = BLOCK_ICON[entry.type as keyof typeof BLOCK_ICON] ?? WrenchIcon
-  const run = stepRun(entry, steps)
+  const run = findStep(entry, steps)
 
   return (
     <div
@@ -172,7 +171,11 @@ function BlockCard({ entry, steps }: { entry: GraphEntry; steps: Steps }) {
           <span
             className={cn(
               "ml-auto shrink-0 text-xs",
-              run.status === "failed" ? "text-destructive" : "text-primary"
+              run.status === STEP_RUNNING
+                ? "animate-pulse text-muted-foreground"
+                : run.status === "failed"
+                  ? "text-destructive"
+                  : "text-primary"
             )}
           >
             {run.status}

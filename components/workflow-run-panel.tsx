@@ -6,7 +6,9 @@ import { PlayIcon, TriangleAlertIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   inputFields,
+  runProgress,
   type InputField,
+  type StepRun,
   type Workflow,
   type WorkflowRun,
 } from "@/lib/workflows"
@@ -119,12 +121,14 @@ function Field({
 export function WorkflowRunPanel({
   workflow,
   run,
+  steps,
   error,
   running,
   onRun,
 }: {
   workflow: Workflow
   run: WorkflowRun | null
+  steps: Record<string, StepRun>
   error: string | null
   running: boolean
   onRun: (inputData: Record<string, unknown>) => void
@@ -135,6 +139,8 @@ export function WorkflowRunPanel({
   )
   const [values, setValues] = React.useState(() => initialValues(fields))
   const [formError, setFormError] = React.useState<string | null>(null)
+
+  const { total, finished } = runProgress(workflow.definition.graph, steps)
 
   function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -207,6 +213,11 @@ export function WorkflowRunPanel({
             {running ? <Spinner /> : <PlayIcon />}
             {running ? "Running" : "Run workflow"}
           </Button>
+          {running && (
+            <span className="text-xs text-muted-foreground">
+              {finished} of {total} {total === 1 ? "block" : "blocks"} done
+            </span>
+          )}
           {formError && (
             <span className="text-xs text-destructive">{formError}</span>
           )}

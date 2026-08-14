@@ -16,7 +16,7 @@ A minimal chatbot template built with Next.js, [Mastra](https://mastra.ai), the 
 - A fixed palette of triage building blocks the agent arranges into workflows (see [The scenario](#the-scenario))
 - Workflows drawn on the canvas as the agent streams them (see [How it works](#how-it-works))
 - Definitions persisted in a local SQLite file, so they survive a reload and a restart
-- Any saved workflow runnable from the canvas, with each block's result drawn onto the graph
+- Any saved workflow runnable from the canvas, with each block lighting up on the graph as it runs
 - Tool part components kept as a reference for when tools are added back (see [Tool parts](#tool-parts))
 
 ## The scenario
@@ -119,18 +119,40 @@ a Next.js app never calls, so [mastra/stored-workflows.ts](mastra/stored-workflo
 does that load itself, once per process, before listing or running anything.
 
 Saved workflows get a **Run** button on the canvas. It builds a form from the
-workflow's input JSON Schema, posts to `/api/workflows/[id]/run`, and Mastra
-executes it exactly as it would a code-defined workflow:
+workflow's input JSON Schema and posts to `/api/workflows/[id]/run`, where
+Mastra executes it exactly as it would a code-defined workflow.
+
+`run.start()` would only resolve at the end, which tells you nothing while a
+long workflow is in flight, so the route uses
+[`run.stream()`](https://mastra.ai/reference/streaming/workflows/stream):
 
 ```ts
 const run = await mastra.getWorkflow(id).createRun()
-const result = await run.start({ inputData })
+const stream = run.stream({ inputData })
+
+for await (const chunk of stream) {
+  // workflow-step-start, workflow-step-result, …
+}
+
+const result = await stream.result
 ```
 
-Every step's status and output comes back with the result, so the blocks that
-took part are outlined on the graph with their output attached, and the ones a
-branch skipped stay plain. A workflow that fails mid-graph still returns a run —
-the failing block carries the error.
+Those events are written out as newline-delimited JSON (`RunEvent` in
+[lib/workflows.ts](lib/workflows.ts)) and applied as they arrive: a block gets
+outlined and marked `running` when it starts, then carries its status and output
+when it finishes, with a running count in the drawer. Blocks a branch skipped
+stay plain, so the count can stop short of the total on a run that succeeded.
+
+The final `finish` event carries the whole run, including the per-step errors
+the mid-stream events don't have, so the UI replaces what it built up with the
+authoritative result. A workflow that fails mid-graph still finishes with a run
+— the failing block carries the error.
+
+The response streams for as long as the run takes, which `maxDuration` bounds.
+For runs longer than a request should live, Mastra also has
+[`observeStream()`](https://mastra.ai/reference/streaming/workflows/observeStream)
+to reattach to a run in flight and `getWorkflowRunById()` to read a finished
+run's snapshot back out of storage.
 
 ## Skills
 

@@ -89,7 +89,7 @@ export interface StepRun {
   error?: string
 }
 
-/** The result of running a workflow, as `/api/workflows/[id]/run` returns it. */
+/** The result of running a workflow, as the run's `finish` event carries it. */
 export interface WorkflowRun {
   runId?: string
   status: string
@@ -97,6 +97,19 @@ export interface WorkflowRun {
   error?: string
   steps: Record<string, StepRun>
 }
+
+/**
+ * What `/api/workflows/[id]/run` streams, one JSON object per line. A `step`
+ * arrives when a block starts and again when it finishes, so a long workflow
+ * reports progress instead of going quiet until the end.
+ */
+export type RunEvent =
+  | { type: "step"; stepId: string; step: StepRun }
+  | { type: "finish"; run: WorkflowRun }
+  | { type: "error"; message: string }
+
+/** A step that has started but not reported a result yet. */
+export const STEP_RUNNING = "running"
 
 /** The entry types that stand for one unit of work rather than plumbing. */
 const BLOCK_TYPES = new Set(["agent", "tool", "workflow"])
@@ -122,6 +135,62 @@ export function countBlocks(entries: GraphEntries | undefined): number {
       countBlocks(entry.step ? [entry.step] : undefined)
     )
   }, 0)
+}
+
+/**
+ * A run reports a step under the entry's own id, or under the id of the thing
+ * it invokes when the entry didn't name itself.
+ */
+export function findStep(
+  entry: GraphEntry,
+  steps: Record<string, StepRun> | undefined
+): StepRun | undefined {
+  return steps?.[entry.id ?? ""] ?? steps?.[entryLabel(entry)]
+}
+
+/**
+ * How far a run has got, counting only the blocks the canvas draws as cards.
+ * Mapping entries report as steps too, but they're plumbing.
+ *
+ * A branch that isn't taken never reports, so `finished` can stop short of
+ * `total` on a run that succeeded.
+ */
+export function runProgress(
+  entries: GraphEntries | undefined,
+  steps: Record<string, StepRun>
+): { total: number; finished: number } {
+  if (!entries) {
+    return { total: 0, finished: 0 }
+  }
+
+  return entries.reduce(
+    (progress, entry) => {
+      if (!entry) {
+        return progress
+      }
+
+      if (entry.type && BLOCK_TYPES.has(entry.type)) {
+        const step = findStep(entry, steps)
+
+        return {
+          total: progress.total + 1,
+          finished:
+            progress.finished + (step && step.status !== STEP_RUNNING ? 1 : 0),
+        }
+      }
+
+      const nested = runProgress(
+        entry.steps ?? (entry.step ? [entry.step] : undefined),
+        steps
+      )
+
+      return {
+        total: progress.total + nested.total,
+        finished: progress.finished + nested.finished,
+      }
+    },
+    { total: 0, finished: 0 }
+  )
 }
 
 /** The label a graph entry shows on the canvas. */

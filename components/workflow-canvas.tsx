@@ -35,7 +35,7 @@ import {
  */
 function WorkflowView({ workflow }: { workflow: Workflow }) {
   const [open, setOpen] = React.useState(false)
-  const { run, error, running, start } = useWorkflowRun(workflow.id)
+  const { run, steps, error, running, start } = useWorkflowRun(workflow.id)
 
   const graph = workflow.definition.graph ?? []
   const blocks = countBlocks(graph)
@@ -76,13 +76,14 @@ function WorkflowView({ workflow }: { workflow: Workflow }) {
               <AlertDescription>{workflow.issues}</AlertDescription>
             </Alert>
           )}
-          <WorkflowGraph graph={graph} steps={run?.steps} />
+          <WorkflowGraph graph={graph} steps={steps} />
         </div>
       </PanelContent>
       {open && (
         <WorkflowRunPanel
           workflow={workflow}
           run={run}
+          steps={steps}
           error={error}
           running={running}
           onRun={start}
