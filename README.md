@@ -14,6 +14,7 @@ A minimal chatbot template built with Next.js, [Mastra](https://mastra.ai), the 
 - A single [Mastra](https://mastra.ai) agent behind `/api/chat`, with per-request model selection
 - A [skill](#skills) that teaches the agent to author Mastra dynamic workflow definitions
 - A fixed palette of triage building blocks the agent arranges into workflows (see [The scenario](#the-scenario))
+- Workflows drawn on the canvas as the agent streams them (see [How it works](#how-it-works))
 - Tool part components kept as a reference for when tools are added back (see [Tool parts](#tool-parts))
 
 ## The scenario
@@ -85,11 +86,21 @@ The route already validates the request body and restricts models to [lib/models
 
 ## How it works
 
-- [mastra/index.ts](mastra/index.ts) registers the agents; [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts) is a single tool-less agent whose model is resolved per request from the `RequestContext`.
+The agent doesn't triage anything itself. It writes a **dynamic workflow
+definition** — JSON describing schemas and a step graph — and hands it to its one
+tool, `create_workflow`. Mastra validates the definition against the live
+registry, registers it with
+[`addDynamicWorkflow()`](https://mastra.ai/docs/workflows/dynamic-workflows), and
+the UI draws it. Validation errors come back to the agent, which fixes them and
+calls again.
+
+- [mastra/index.ts](mastra/index.ts) registers the agents and the tool palette; [mastra/agents/chat-agent.ts](mastra/agents/chat-agent.ts) is the chat agent, with its model resolved per request from the `RequestContext`.
+- [mastra/tools/create-workflow.ts](mastra/tools/create-workflow.ts) is the agent's only tool — it registers a definition and is what the canvas renders.
 - [mastra/skills/](mastra/skills) holds the agent's skills. See [Skills](#skills).
 - [app/api/chat/route.ts](app/api/chat/route.ts) validates the request and streams the agent with `handleChatStream` from `@mastra/ai-sdk`.
-- [components/chat.tsx](components/chat.tsx) renders the conversation with `useChat` and shadcn chat primitives.
-- [tools/index.ts](tools/index.ts) holds no tools right now — only the UI part types the components below are written against.
+- [components/chat-context.tsx](components/chat-context.tsx) holds one `Chat` instance shared by the whole workspace, following the [shared chat context](https://ai-sdk.dev/cookbook/next/use-shared-chat-context) pattern. The chat panel, the workflow list and the canvas all read the same messages.
+- [hooks/use-workflows.ts](hooks/use-workflows.ts) pulls every `create_workflow` call out of those messages; [components/workflow-graph.tsx](components/workflow-graph.tsx) draws one, streaming entries included.
+- [tools/index.ts](tools/index.ts) holds the UI part types the components below are written against.
 
 ## Skills
 
@@ -116,7 +127,7 @@ the schemas and the step graph. It leaves out the runtime APIs
 
 ## Tool parts
 
-> The agent defines no tools of its own, so none of these render yet. They are kept intact as a working reference for wiring Mastra tools back in. (The built-in skill tools do run, but have no part type here, so `chat-message.tsx` skips them.)
+> `tool-create_workflow` and the `tool-skill*` parts render today. The `github_repo`, `web_search` and `ask_user` parts came with the template and are kept intact as a working reference for wiring more Mastra tools back in.
 
 Assistant messages are a list of typed parts. [components/chat-message.tsx](components/chat-message.tsx) switches on `part.type` and delegates each one to a component in [components/parts/](components/parts):
 
@@ -127,6 +138,8 @@ Assistant messages are a list of typed parts. [components/chat-message.tsx](comp
 | `tool-web_search`  | [web-search-part.tsx](components/parts/web-search-part.tsx)       | A "Searching the web…" status while the search runs, then a persistent "Searched the web" line per search.                                     |
 | `tool-ask_user`    | [ask-user-part.tsx](components/parts/ask-user-part.tsx)           | The answered questions inline. Pending questions render in [question-card.tsx](components/question-card.tsx), pinned to the scroller bottom.   |
 | `source-url`       | [sources-part.tsx](components/parts/sources-part.tsx)             | Web search citations, deduped into a "Searched N websites" drawer once the message finishes streaming.                                         |
+| `tool-create_workflow` | [create-workflow-part.tsx](components/parts/create-workflow-part.tsx) | A one-line marker that a workflow was handed over, plus validation errors when Mastra rejected it. The graph itself goes on the canvas. |
+| `tool-skill*`      | [skill-part.tsx](components/parts/skill-part.tsx)                 | Quiet status lines for the agent loading a skill, reading one of its reference files, or searching across them.                                |
 
 Tool parts move through states as the stream progresses — `input-streaming` → `input-available` → `output-available` (or `output-error`) — and each component switches on `part.state` to show progress, results, and failures.
 

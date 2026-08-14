@@ -1,11 +1,21 @@
+"use client"
+
+import { useChat } from "@ai-sdk/react"
 import { PlusIcon } from "lucide-react"
 
+import { useSharedChat } from "@/components/chat-context"
 import { Button } from "@/components/ui/button"
 
 export function NewChatButton() {
+  const { chat, clearChat } = useSharedChat()
+  const { messages } = useChat({ chat })
+
   return (
-    // eslint-disable-next-line @next/next/no-html-link-for-pages
-    <Button variant="secondary" render={<a href="/" />} nativeButton={false}>
+    <Button
+      variant="secondary"
+      onClick={clearChat}
+      disabled={messages.length === 0}
+    >
       <PlusIcon data-icon="inline-start" />
       New Chat
     </Button>

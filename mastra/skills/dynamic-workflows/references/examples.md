@@ -4,7 +4,8 @@ Three tenants triaging support tickets out of the same eight blocks. The blocks
 are fixed; the order, the branches and the subset used are what differ.
 
 Read these for the shape of a correct definition, not as templates to copy
-verbatim — the user's process will differ.
+verbatim — the user's process will differ. Each one is what you would pass to
+`create_workflow`, minus the outer JSON quoting.
 
 ## Tenant A — fast-moving startup
 

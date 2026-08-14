@@ -1,10 +1,13 @@
 import { type UIDataTypes, type UIMessage } from "ai"
 
+import { type WorkflowDefinition } from "@/lib/workflows"
+
 /**
- * The agent (see `mastra/agents/chat-agent.ts`) defines no tools of its own. It
- * does get Mastra's built-in `skill`, `skill_read` and `skill_search` tools
- * because it has a skill attached — those are the `skill*` entries below, and
- * they all return a plain string.
+ * The chat agent (see `mastra/agents/chat-agent.ts`) has exactly one tool of its
+ * own, `create_workflow`. It also gets Mastra's built-in `skill`, `skill_read`
+ * and `skill_search` because it has a skill attached; those all return a plain
+ * string. The triage blocks in `mastra/tools/index.ts` are deliberately absent:
+ * the agent writes workflows that reference them, it never calls them.
  *
  * The tool implementations that shipped with the template were removed, but the
  * UI part types below are kept on purpose: `components/parts/*` and
@@ -16,6 +19,19 @@ import { type UIDataTypes, type UIMessage } from "ai"
  * part component stays type-safe.
  */
 export type ChatTools = {
+  /**
+   * The chat agent hands a finished workflow definition to this tool. The
+   * canvas renders the call's input, so the part below is the workflow.
+   */
+  create_workflow: {
+    input: WorkflowDefinition
+    output: {
+      registered: boolean
+      workflowId: string
+      stepCount: number
+      issues?: string
+    }
+  }
   /** Loads a skill's full instructions. Provided by Mastra. */
   skill: {
     input: { name: string }
@@ -81,6 +97,11 @@ export type AskUserToolPart = Extract<
 export type WebSearchToolPart = Extract<
   ChatMessagePart,
   { type: "tool-web_search" }
+>
+
+export type CreateWorkflowToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-create_workflow" }
 >
 
 export type SkillToolPart = Extract<ChatMessagePart, { type: "tool-skill" }>

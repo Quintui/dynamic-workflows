@@ -1,9 +1,10 @@
 "use client"
 
-import { PlusIcon, WorkflowIcon } from "lucide-react"
+import { WorkflowIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
+  countBlocks,
   WORKFLOW_STATUS_LABEL,
   type Workflow,
   type WorkflowStatus,
@@ -12,9 +13,9 @@ import {
   Panel,
   PanelContent,
   PanelHeader,
+  PanelHint,
   PanelTitle,
 } from "@/components/panel"
-import { Button } from "@/components/ui/button"
 import {
   Empty,
   EmptyDescription,
@@ -31,29 +32,27 @@ import {
 } from "@/components/ui/item"
 
 const statusDot: Record<WorkflowStatus, string> = {
-  draft: "bg-muted-foreground/40",
-  running: "animate-pulse bg-primary",
+  building: "animate-pulse bg-primary",
   ready: "bg-primary",
+  invalid: "bg-destructive",
 }
 
 export function WorkflowList({
   workflows,
-  selectedId,
+  selectedKey,
   onSelect,
   className,
 }: {
   workflows: Workflow[]
-  selectedId: string | null
-  onSelect: (id: string) => void
+  selectedKey: string | null
+  onSelect: (key: string) => void
   className?: string
 }) {
   return (
     <Panel className={className}>
       <PanelHeader>
         <PanelTitle>Workflows</PanelTitle>
-        <Button variant="ghost" size="icon-sm" aria-label="New workflow">
-          <PlusIcon />
-        </Button>
+        <PanelHint>{workflows.length || ""}</PanelHint>
       </PanelHeader>
       <PanelContent className="overflow-y-auto p-2">
         {workflows.length === 0 ? (
@@ -64,44 +63,49 @@ export function WorkflowList({
               </EmptyMedia>
               <EmptyTitle>No workflows yet</EmptyTitle>
               <EmptyDescription>
-                Describe one in the chat and it will show up here.
+                Describe how a tenant triages tickets in the chat and the
+                workflow shows up here.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
           <ItemGroup className="gap-1">
-            {workflows.map((workflow) => (
-              <Item
-                key={workflow.id}
-                size="sm"
-                variant={workflow.id === selectedId ? "muted" : "default"}
-                className="cursor-pointer text-left hover:bg-muted/50"
-                render={
-                  <button
-                    type="button"
-                    aria-current={workflow.id === selectedId}
-                    onClick={() => onSelect(workflow.id)}
-                  />
-                }
-              >
-                <ItemContent>
-                  <ItemTitle className="max-w-full">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "size-1.5 shrink-0 rounded-full",
-                        statusDot[workflow.status]
-                      )}
+            {workflows.map((workflow) => {
+              const blocks = countBlocks(workflow.definition.graph)
+
+              return (
+                <Item
+                  key={workflow.key}
+                  size="sm"
+                  variant={workflow.key === selectedKey ? "muted" : "default"}
+                  className="cursor-pointer text-left hover:bg-muted/50"
+                  render={
+                    <button
+                      type="button"
+                      aria-current={workflow.key === selectedKey}
+                      onClick={() => onSelect(workflow.key)}
                     />
-                    <span className="truncate">{workflow.name}</span>
-                  </ItemTitle>
-                  <ItemDescription className="line-clamp-1 text-xs">
-                    {WORKFLOW_STATUS_LABEL[workflow.status]} ·{" "}
-                    {workflow.updatedAt}
-                  </ItemDescription>
-                </ItemContent>
-              </Item>
-            ))}
+                  }
+                >
+                  <ItemContent>
+                    <ItemTitle className="max-w-full">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "size-1.5 shrink-0 rounded-full",
+                          statusDot[workflow.status]
+                        )}
+                      />
+                      <span className="truncate">{workflow.definition.id}</span>
+                    </ItemTitle>
+                    <ItemDescription className="line-clamp-1 text-xs">
+                      {WORKFLOW_STATUS_LABEL[workflow.status]} · {blocks}{" "}
+                      {blocks === 1 ? "block" : "blocks"}
+                    </ItemDescription>
+                  </ItemContent>
+                </Item>
+              )
+            })}
           </ItemGroup>
         )}
       </PanelContent>

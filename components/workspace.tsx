@@ -2,30 +2,38 @@
 
 import * as React from "react"
 
+import { useWorkflows } from "@/hooks/use-workflows"
 import { type ChatModel } from "@/lib/models"
-import { WORKFLOWS } from "@/lib/workflows"
 import { Chat } from "@/components/chat"
+import { ChatProvider } from "@/components/chat-context"
+import { NewChatButton } from "@/components/new-chat-button"
 import {
   Panel,
   PanelContent,
   PanelHeader,
   PanelTitle,
 } from "@/components/panel"
-import { NewChatButton } from "@/components/new-chat-button"
 import { WorkflowCanvas } from "@/components/workflow-canvas"
 import { WorkflowList } from "@/components/workflow-list"
 
-export function Workspace({ models }: { models: ChatModel[] }) {
-  const [selectedId, setSelectedId] = React.useState<string | null>(null)
+/**
+ * The three panes read from one shared chat, so the canvas and the list show
+ * whatever the agent has built without any state of their own.
+ */
+function WorkspacePanes({ models }: { models: ChatModel[] }) {
+  const workflows = useWorkflows()
+  const [pinnedKey, setPinnedKey] = React.useState<string | null>(null)
 
-  const selected = WORKFLOWS.find((w) => w.id === selectedId) ?? null
+  // Follow the newest workflow unless the user has picked one from the list.
+  const pinned = workflows.find((workflow) => workflow.key === pinnedKey)
+  const selected = pinned ?? workflows.at(-1) ?? null
 
   return (
     <div className="flex min-h-0 flex-1 gap-3 p-3">
       <WorkflowList
-        workflows={WORKFLOWS}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
+        workflows={workflows}
+        selectedKey={selected?.key ?? null}
+        onSelect={setPinnedKey}
         className="hidden w-64 shrink-0 lg:flex"
       />
       <WorkflowCanvas workflow={selected} className="hidden flex-1 md:flex" />
@@ -39,5 +47,13 @@ export function Workspace({ models }: { models: ChatModel[] }) {
         </PanelContent>
       </Panel>
     </div>
+  )
+}
+
+export function Workspace({ models }: { models: ChatModel[] }) {
+  return (
+    <ChatProvider>
+      <WorkspacePanes models={models} />
+    </ChatProvider>
   )
 }

@@ -2,10 +2,9 @@
 
 import * as React from "react"
 import { useChat } from "@ai-sdk/react"
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai"
 import { type ChatModel } from "@/lib/models"
-import { type ChatUIMessage } from "@/tools"
 import { ChatMessage } from "@/components/chat-message"
+import { useSharedChat } from "@/components/chat-context"
 import { PromptForm } from "@/components/prompt-form"
 import { QuestionCard } from "@/components/question-card"
 import { Suggestions } from "@/components/suggestions"
@@ -29,12 +28,13 @@ import {
 export function Chat({ models }: { models: ChatModel[] }) {
   const [model, setModel] = React.useState(models[0]?.id ?? "")
 
-  const { messages, sendMessage, status, stop, error, addToolOutput } =
-    useChat<ChatUIMessage>({
-      // Resume the conversation automatically once the user has answered the
-      // ask_user questionnaire.
-      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    })
+  // The canvas reads the same instance, so a workflow the agent builds shows up
+  // there as it streams. See components/chat-context.tsx.
+  const { chat } = useSharedChat()
+
+  const { messages, sendMessage, status, stop, error, addToolOutput } = useChat(
+    { chat }
+  )
 
   const resolvedModel = models.some((m) => m.id === model)
     ? model

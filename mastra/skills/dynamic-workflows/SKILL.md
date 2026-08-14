@@ -135,9 +135,13 @@ Read `references/graph-entries.md` for the exact shape of every entry type,
 3. Write the graph one entry at a time, tracking the shape flowing between
    entries. Insert `mapping` entries wherever the shape changes.
 4. Walk the graph once against the rules above before you present it.
-5. Present the definition as a single JSON object in a ```json code block, and
-   describe what it does in a sentence or two. Don't dump the whole schema in
-   prose — the JSON is the answer.
+5. Hand the definition to the `create_workflow` tool. That validates it against
+   the real registry, registers it, and draws it on the canvas. Don't paste the
+   JSON into your reply as well — it is already on screen.
+6. If the tool reports validation issues, they name the exact entry (for example
+   `graph.2.steps.0`). Fix and call again with the same id.
+7. Then say in a few lines what the process does and what's distinctive about
+   it — what it skips, branches on, or always does.
 
 Prefer the smallest graph that does the job. Reach for `parallel`,
 `conditional`, `foreach` and `loop` only when the user's description actually
