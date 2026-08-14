@@ -1,14 +1,14 @@
 import type { Metadata } from "next"
 
 import { MODELS } from "@/lib/models"
-import { Chat } from "@/components/chat"
+import { Workspace } from "@/components/workspace"
 
 export const metadata: Metadata = {
-  title: "Chat",
+  title: "Dynamic Workflows",
   description:
-    "A chatbot template built using shadcn/ui, shadcn/react and shadcn/typeset, powered by a Mastra agent on OpenRouter.",
+    "Describe a workflow in the chat and watch it get built, powered by a Mastra agent on OpenRouter.",
 }
 
 export default function Page() {
-  return <Chat models={MODELS} />
+  return <Workspace models={MODELS} />
 }

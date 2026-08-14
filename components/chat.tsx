@@ -54,10 +54,10 @@ export function Chat({ models }: { models: ChatModel[] }) {
       : undefined
 
   return (
-    <div className="mx-auto flex min-h-0 w-full flex-1 flex-col">
+    <div className="flex min-h-0 w-full flex-1 flex-col">
       {messages.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center p-6">
-          <Empty>
+        <div className="flex flex-1 items-center justify-center p-2">
+          <Empty className="p-6">
             <EmptyHeader>
               <EmptyTitle>What can I help with?</EmptyTitle>
               <EmptyDescription>
@@ -81,7 +81,7 @@ export function Chat({ models }: { models: ChatModel[] }) {
         <MessageScrollerProvider>
           <MessageScroller className="flex-1">
             <MessageScrollerViewport>
-              <MessageScrollerContent className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-6">
+              <MessageScrollerContent className="flex w-full flex-col gap-6 px-4 py-4">
                 {messages.map((message) => (
                   <MessageScrollerItem
                     key={message.id}
@@ -121,7 +121,7 @@ export function Chat({ models }: { models: ChatModel[] }) {
         </MessageScrollerProvider>
       )}
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 px-6 pb-6">
+      <div className="flex w-full flex-col gap-2 px-4 pb-4">
         {error && (
           <Alert variant="destructive">
             <AlertTitle>Request failed</AlertTitle>

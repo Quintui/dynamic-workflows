@@ -126,6 +126,13 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Dot grid behind the workflow canvas. */
+.canvas-grid {
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 16px 16px;
+  background-position: -1px -1px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
