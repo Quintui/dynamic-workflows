@@ -59,10 +59,10 @@ export function Chat({ models }: { models: ChatModel[] }) {
         <div className="flex flex-1 items-center justify-center p-2">
           <Empty className="p-6">
             <EmptyHeader>
-              <EmptyTitle>What can I help with?</EmptyTitle>
+              <EmptyTitle>How should tickets be triaged?</EmptyTitle>
               <EmptyDescription>
-                Pick a model and start chatting. Responses stream through a
-                Mastra agent using OpenRouter.
+                Describe how a tenant handles incoming support tickets and the
+                workflow gets built from the shared blocks.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>

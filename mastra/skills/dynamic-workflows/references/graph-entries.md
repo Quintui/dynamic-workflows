@@ -11,13 +11,13 @@ input and returns `{ text: string }` by default.
 ```json
 {
   "type": "agent",
-  "id": "summarize",
-  "agentId": "support-agent"
+  "id": "reply",
+  "agentId": "draft-reply"
 }
 ```
 
 The `id` identifies this call site inside the workflow. Later steps read the
-result as `stepResults.summarize`, regardless of the agent's own ID.
+result as `stepResults.reply`, regardless of the agent's own ID.
 
 Use a `mapping` entry before an agent step to build its `{ prompt }` input from
 workflow data.
@@ -27,15 +27,15 @@ Add an `outputSchema` to ask the agent for structured output instead of text:
 ```json
 {
   "type": "agent",
-  "id": "extract-subtopics",
-  "agentId": "support-agent",
+  "id": "classify",
+  "agentId": "classify-ticket",
   "outputSchema": {
-    "type": "array",
-    "items": {
-      "type": "object",
-      "properties": { "title": { "type": "string" } },
-      "required": ["title"]
-    }
+    "type": "object",
+    "properties": {
+      "category": { "type": "string" },
+      "urgency": { "type": "string" }
+    },
+    "required": ["category", "urgency"]
   }
 }
 ```
@@ -46,9 +46,9 @@ Only `retries` and `metadata` are kept:
 ```json
 {
   "type": "agent",
-  "id": "summarize",
-  "agentId": "support-agent",
-  "description": "Summarize the incoming request",
+  "id": "reply",
+  "agentId": "draft-reply",
+  "description": "Write the customer-facing response",
   "options": { "retries": 2, "metadata": { "team": "support" } }
 }
 ```
@@ -77,7 +77,7 @@ Reshapes data between steps. See `mapping.md` for the descriptors.
 {
   "type": "mapping",
   "id": "build-prompt",
-  "mapConfig": "{\"prompt\":{\"template\":\"Summarize this request: ${initData.request}\"}}"
+  "mapConfig": "{\"prompt\":{\"template\":\"Write a reply to this ticket: ${initData.request}\"}}"
 }
 ```
 
@@ -91,14 +91,18 @@ Invokes another registered workflow as a single step.
 ```json
 {
   "type": "workflow",
-  "id": "lookup-first",
-  "workflowId": "lookup-customer-workflow"
+  "id": "enrich-first",
+  "workflowId": "customer-enrichment"
 }
 ```
 
 The `id` is the call site, so the same nested workflow can appear several times
 under different IDs and each result is addressed as `stepResults.<id>`. A
 `workflow` entry also accepts an optional `description`.
+
+This app registers no reusable workflows yet, so `workflow` entries have nothing
+to point at — the ID above is illustrative. Build from the block palette
+instead.
 
 ## Parallel entries
 
@@ -126,19 +130,19 @@ Pairs each step with a predicate and runs every branch whose predicate is true.
 {
   "type": "conditional",
   "steps": [
-    { "type": "agent", "id": "escalate", "agentId": "support-agent" },
-    { "type": "agent", "id": "auto-reply", "agentId": "support-agent" }
+    { "type": "agent", "id": "paid-reply", "agentId": "draft-reply" },
+    { "type": "tool", "id": "forum", "toolId": "route-to-forum" }
   ],
   "predicates": [
     {
-      "op": "eq",
-      "left": { "path": "inputData.priority" },
-      "right": { "literal": "urgent" }
+      "op": "ne",
+      "left": { "path": "inputData.channel" },
+      "right": { "literal": "self-serve" }
     },
     {
-      "op": "ne",
-      "left": { "path": "inputData.priority" },
-      "right": { "literal": "urgent" }
+      "op": "eq",
+      "left": { "path": "inputData.channel" },
+      "right": { "literal": "self-serve" }
     }
   ]
 }
@@ -159,11 +163,7 @@ a raw array. Results keep the input order, and concurrency defaults to `1`.
 ```json
 {
   "type": "foreach",
-  "step": {
-    "type": "workflow",
-    "id": "write-blurb",
-    "workflowId": "blurb-workflow"
-  },
+  "step": { "type": "agent", "id": "reply", "agentId": "draft-reply" },
   "opts": { "concurrency": 3 }
 }
 ```
@@ -179,11 +179,11 @@ Repeats one step while (`dowhile`) or until (`dountil`) a predicate holds.
 {
   "type": "loop",
   "loopType": "dountil",
-  "step": { "type": "tool", "id": "poll", "toolId": "check-status" },
+  "step": { "type": "tool", "id": "retry-alert", "toolId": "notify-team" },
   "predicate": {
     "op": "eq",
-    "left": { "path": "inputData.status" },
-    "right": { "literal": "done" }
+    "left": { "path": "inputData.delivered" },
+    "right": { "literal": true }
   }
 }
 ```

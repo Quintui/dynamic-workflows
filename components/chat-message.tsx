@@ -3,6 +3,11 @@
 import { type ChatUIMessage } from "@/tools"
 import { AskUserPart } from "@/components/parts/ask-user-part"
 import { GithubRepoPart } from "@/components/parts/github-repo-part"
+import {
+  SkillPart,
+  SkillReadPart,
+  SkillSearchPart,
+} from "@/components/parts/skill-part"
 import { SourcesPart } from "@/components/parts/sources-part"
 import { TextPart } from "@/components/parts/text-part"
 import { WebSearchPart } from "@/components/parts/web-search-part"
@@ -46,6 +51,12 @@ export function ChatMessage({
               return <AskUserPart key={part.toolCallId} part={part} />
             case "tool-web_search":
               return <WebSearchPart key={part.toolCallId} part={part} />
+            case "tool-skill":
+              return <SkillPart key={part.toolCallId} part={part} />
+            case "tool-skill_read":
+              return <SkillReadPart key={part.toolCallId} part={part} />
+            case "tool-skill_search":
+              return <SkillSearchPart key={part.toolCallId} part={part} />
             default:
               return null
           }

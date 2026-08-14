@@ -52,6 +52,38 @@ round trip.
 }
 ```
 
+## The blocks you can use
+
+This app triages customer support tickets. The capability palette is **fixed** —
+these eight blocks are the only `agentId`s and `toolId`s that exist. Every
+tenant's process is built by arranging them differently: different order,
+different branches, different subsets.
+
+| Block             | Entry type | Does                                                | Takes                              | Returns                                                  |
+| ----------------- | ---------- | --------------------------------------------------- | ---------------------------------- | -------------------------------------------------------- |
+| `classify-ticket` | `agent`    | Reads the request, decides category and urgency      | `{ prompt }` with the request text | `{ text }`, or structured via `outputSchema`              |
+| `lookup-customer` | `tool`     | Fetches the customer record                          | `{ customerId }`                   | `{ customerId, name, planTier, accountAgeDays, preferredLanguage }` |
+| `check-entitlement` | `tool`   | Maps a plan tier to a support channel                | `{ planTier }`                     | `{ planTier, channel, responseTargetHours }`             |
+| `draft-reply`     | `agent`    | Writes the customer-facing response                  | `{ prompt }` with ticket + context | `{ text }`                                               |
+| `translate`       | `agent`    | Translates a draft into the customer's language      | `{ prompt }` with text + language  | `{ text }`                                               |
+| `notify-team`     | `tool`     | Posts an alert to the internal channel               | `{ message, urgency }`             | `{ delivered, channel, notifiedAt }`                     |
+| `create-ticket`   | `tool`     | Files a ticket in the tracker for follow-up or audit | `{ subject, description?, category?, urgency?, customerId? }` | `{ ticketRef, url, status }`         |
+| `route-to-forum`  | `tool`     | Sends the customer to self-serve community resources | `{ subject, category? }`           | `{ text, url }`                                          |
+
+Plan tiers are `free`, `standard`, `pro` and `enterprise`. Entitlement channels
+are `self-serve`, `standard` and `priority`. Urgency is `low`, `normal` or
+`urgent`.
+
+Never invent a block outside this list. If someone asks for a step the palette
+can't do — charge a card, call a phone number — say which block is missing
+rather than inventing an ID, and offer the closest arrangement that does work.
+
+Because the agent blocks take `{ prompt }` and return `{ text }`, an agent entry
+almost always needs a `mapping` entry before it (to build the prompt) and often
+one after it (to name its `text` output). `route-to-forum` also returns its copy
+under `text`, so a branch between it and `draft-reply` can be read with a single
+`{ "step": ["…", "…"], "path": "text" }` descriptor.
+
 ## The graph
 
 Entries in `graph` run in order. Each entry receives the previous entry's
@@ -77,12 +109,9 @@ Read `references/graph-entries.md` for the exact shape of every entry type,
 
 ## Rules that decide whether a definition is valid
 
-- Every `agentId`, `toolId` and `workflowId` must name a component registered on
-  this app before the workflow can run. `toolId` is the tool's registration key;
-  agents and nested workflows use their own IDs. Use a real ID whenever you know
-  one. When you don't, still write the full definition with a descriptive
-  placeholder ID, and say in one line which IDs have to be registered before it
-  will validate. Don't stop and ask — a draft the user can see beats a question.
+- Every `agentId` and `toolId` must come from the palette above. Never invent
+  one, and never stop to ask which block to use — pick the closest one and say
+  so. A definition the user can see beats a question.
 - Each entry's input must be compatible with the previous entry's output. When
   they don't line up, put a `mapping` entry between them.
 - Entry `id` is the call site, not the component. Later steps read a result as

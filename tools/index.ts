@@ -3,8 +3,8 @@ import { type UIDataTypes, type UIMessage } from "ai"
 /**
  * The agent (see `mastra/agents/chat-agent.ts`) defines no tools of its own. It
  * does get Mastra's built-in `skill`, `skill_read` and `skill_search` tools
- * because it has a skill attached; those calls have no part type here, so
- * `components/chat-message.tsx` skips them.
+ * because it has a skill attached — those are the `skill*` entries below, and
+ * they all return a plain string.
  *
  * The tool implementations that shipped with the template were removed, but the
  * UI part types below are kept on purpose: `components/parts/*` and
@@ -16,6 +16,26 @@ import { type UIDataTypes, type UIMessage } from "ai"
  * part component stays type-safe.
  */
 export type ChatTools = {
+  /** Loads a skill's full instructions. Provided by Mastra. */
+  skill: {
+    input: { name: string }
+    output: string
+  }
+  /** Reads one file from a skill directory. Provided by Mastra. */
+  skill_read: {
+    input: {
+      skillName: string
+      path: string
+      startLine?: number
+      endLine?: number
+    }
+    output: string
+  }
+  /** Searches across skill content. Provided by Mastra. */
+  skill_search: {
+    input: { query: string; skillNames?: string[]; topK?: number }
+    output: string
+  }
   github_repo: {
     input: { repo: string }
     output:
@@ -61,4 +81,16 @@ export type AskUserToolPart = Extract<
 export type WebSearchToolPart = Extract<
   ChatMessagePart,
   { type: "tool-web_search" }
+>
+
+export type SkillToolPart = Extract<ChatMessagePart, { type: "tool-skill" }>
+
+export type SkillReadToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-skill_read" }
+>
+
+export type SkillSearchToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-skill_search" }
 >

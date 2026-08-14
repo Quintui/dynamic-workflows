@@ -21,73 +21,89 @@ export const WORKFLOW_STATUS_LABEL: Record<WorkflowStatus, string> = {
   ready: "Ready",
 }
 
-// Placeholder data so the layout has something to render. This gets replaced by
-// the workflows the agent builds from the chat.
+// Placeholder data so the layout has something to render: the three tenants
+// from the triage scenario, each arranging the same blocks differently. This
+// gets replaced by the workflows the agent builds from the chat.
 export const WORKFLOWS: Workflow[] = [
   {
-    id: "onboard-customer",
-    name: "Onboard a customer",
-    description: "Collect details, create the account, send a welcome email.",
+    id: "tenant-a-triage",
+    name: "Tenant A — startup",
+    description: "Speed over process. No lookup, no entitlement check.",
     status: "ready",
     updatedAt: "2 minutes ago",
     steps: [
       {
-        id: "collect",
-        name: "Collect details",
-        description: "Ask for company name, seat count and billing contact.",
+        id: "classify",
+        name: "Classify ticket",
+        description: "Work out the category and how urgent it is.",
       },
       {
-        id: "create",
-        name: "Create the account",
-        description: "Provision the workspace and invite the billing contact.",
+        id: "alert",
+        name: "Notify team",
+        description: "Only when the ticket comes back urgent.",
       },
       {
-        id: "welcome",
-        name: "Send the welcome email",
-        description: "Share the getting-started guide and support channel.",
+        id: "reply",
+        name: "Draft reply",
+        description: "Always, whatever the urgency.",
       },
     ],
   },
   {
-    id: "weekly-digest",
-    name: "Weekly digest",
-    description: "Summarise the week and post it to the team channel.",
-    status: "running",
+    id: "tenant-b-triage",
+    name: "Tenant B — enterprise SaaS",
+    description: "Support level follows the plan the customer pays for.",
+    status: "ready",
     updatedAt: "1 hour ago",
     steps: [
       {
-        id: "gather",
-        name: "Gather the week",
-        description: "Pull merged work, incidents and open questions.",
+        id: "customer",
+        name: "Look up customer",
+        description: "Fetch the plan tier and preferred language.",
       },
       {
-        id: "summarise",
-        name: "Summarise",
-        description: "Write a short digest grouped by theme.",
+        id: "entitlement",
+        name: "Check entitlement",
+        description: "Map the plan tier to a support channel.",
       },
       {
-        id: "post",
-        name: "Post it",
-        description: "Send the digest to the team channel every Friday.",
+        id: "branch",
+        name: "Branch on tier",
+        description: "Paid tiers get a drafted reply, free tier the forum.",
       },
     ],
   },
   {
-    id: "triage-bug",
-    name: "Triage a bug report",
-    description: "Reproduce, label and route the report to an owner.",
+    id: "tenant-c-triage",
+    name: "Tenant C — EU compliance",
+    description: "Nothing is skipped and every ticket stays traceable.",
     status: "draft",
     updatedAt: "yesterday",
     steps: [
       {
-        id: "reproduce",
-        name: "Reproduce",
-        description: "Follow the reported steps and record the result.",
+        id: "classify",
+        name: "Classify ticket",
+        description: "Work out the category and how urgent it is.",
       },
       {
-        id: "route",
-        name: "Route to an owner",
-        description: "Label by area and assign the on-call engineer.",
+        id: "customer",
+        name: "Look up customer",
+        description: "Fetch the plan tier and preferred language.",
+      },
+      {
+        id: "reply",
+        name: "Draft reply",
+        description: "Write the customer-facing response.",
+      },
+      {
+        id: "translated",
+        name: "Translate",
+        description: "Into the customer's preferred language.",
+      },
+      {
+        id: "audit",
+        name: "Create ticket",
+        description: "Always, for the audit trail.",
       },
     ],
   },

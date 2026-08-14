@@ -12,7 +12,39 @@ A minimal chatbot template built with Next.js, [Mastra](https://mastra.ai), the 
 
 - Streaming chat with markdown rendering and shadcn/typeset
 - A single [Mastra](https://mastra.ai) agent behind `/api/chat`, with per-request model selection
+- A [skill](#skills) that teaches the agent to author Mastra dynamic workflow definitions
+- A fixed palette of triage building blocks the agent arranges into workflows (see [The scenario](#the-scenario))
 - Tool part components kept as a reference for when tools are added back (see [Tool parts](#tool-parts))
+
+## The scenario
+
+Multi-tenant customer support ticket triage. Three tenants each handle incoming
+tickets differently — different order, different branches, different steps
+skipped — but all of them build from the **same eight blocks**. The point is
+that the palette is fixed and only the arrangement varies.
+
+| Block               | Kind  | Defined in                                                     |
+| ------------------- | ----- | -------------------------------------------------------------- |
+| `classify-ticket`   | Agent | [classify-ticket.ts](mastra/agents/classify-ticket.ts)         |
+| `draft-reply`       | Agent | [draft-reply.ts](mastra/agents/draft-reply.ts)                 |
+| `translate`         | Agent | [translate.ts](mastra/agents/translate.ts)                     |
+| `lookup-customer`   | Tool  | [mastra/tools/index.ts](mastra/tools/index.ts)                 |
+| `check-entitlement` | Tool  | [mastra/tools/index.ts](mastra/tools/index.ts)                 |
+| `notify-team`       | Tool  | [mastra/tools/index.ts](mastra/tools/index.ts)                 |
+| `create-ticket`     | Tool  | [mastra/tools/index.ts](mastra/tools/index.ts)                 |
+| `route-to-forum`    | Tool  | [mastra/tools/index.ts](mastra/tools/index.ts)                 |
+
+The three tenants: **A** (startup) skips the customer lookup entirely. **B**
+(enterprise SaaS) is the only one that branches on entitlement. **C** (EU
+compliance) is the only one that translates and the only one that always files
+an audit ticket.
+
+The five tools are demo stubs. They return plausible, well-shaped data — a small
+mock customer directory, a fake ticket reference, a delivery confirmation — but
+nothing leaves the process. There is no CRM, no Slack and no ticket tracker
+behind them. Swapping in real implementations means changing only
+[mastra/tools/index.ts](mastra/tools/index.ts); the workflows that reference
+them stay as they are.
 
 ## Local development
 
