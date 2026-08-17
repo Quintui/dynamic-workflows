@@ -1,11 +1,11 @@
-# chatbot-template
+# dynamic-workflows
 
-A minimal chatbot template built with Next.js, [Mastra](https://mastra.ai), the [AI SDK](https://ai-sdk.dev), [shadcn/ui](https://ui.shadcn.com), [shadcn/react](https://ui.shadcn.com/docs/react/message-scroller), [shadcn/typeset](https://ui.shadcn.com/docs/typeset) and [OpenRouter](https://openrouter.ai).
+Describe how a tenant triages support tickets in chat, and a [Mastra](https://mastra.ai) agent authors it as a runnable dynamic workflow — drawn on the canvas as it streams, saved to SQLite, and run block by block. Built with Next.js, the [AI SDK](https://ai-sdk.dev), [shadcn/ui](https://ui.shadcn.com), [shadcn/react](https://ui.shadcn.com/docs/react/message-scroller), [shadcn/typeset](https://ui.shadcn.com/docs/typeset) and [OpenRouter](https://openrouter.ai).
 
 <p>
-  <a href="https://github.com/shadcn-ui/chatbot-template/stargazers"><img src="https://shieldcn.dev/github/stars/shadcn-ui/chatbot-template.svg?variant=secondary&size=xs" alt="GitHub stars" /></a>
-  <a href="https://github.com/shadcn-ui/chatbot-template/forks"><img src="https://shieldcn.dev/github/forks/shadcn-ui/chatbot-template.svg?variant=secondary&size=xs" alt="GitHub forks" /></a>
-  <a href="https://github.com/shadcn-ui/chatbot-template/blob/main/LICENSE"><img src="https://shieldcn.dev/github/license/shadcn-ui/chatbot-template.svg?variant=secondary&size=xs" alt="License" /></a>
+  <a href="https://github.com/Quintui/dynamic-workflows/stargazers"><img src="https://shieldcn.dev/github/stars/Quintui/dynamic-workflows.svg?variant=secondary&size=xs" alt="GitHub stars" /></a>
+  <a href="https://github.com/Quintui/dynamic-workflows/forks"><img src="https://shieldcn.dev/github/forks/Quintui/dynamic-workflows.svg?variant=secondary&size=xs" alt="GitHub forks" /></a>
+  <a href="https://github.com/Quintui/dynamic-workflows/blob/main/LICENSE"><img src="https://shieldcn.dev/github/license/Quintui/dynamic-workflows.svg?variant=secondary&size=xs" alt="License" /></a>
 </p>
 
 ## Features
@@ -82,7 +82,7 @@ The `/api/chat` route is **public and unauthenticated** — every request spends
 
 - **Rate limit it.** Add [Vercel Firewall / WAF](https://vercel.com/docs/security/vercel-waf) rules or [`@upstash/ratelimit`](https://github.com/upstash/ratelimit-js) so a single client can't drain your credits (denial-of-wallet).
 - **Cap spend.** Set an [OpenRouter credit limit](https://openrouter.ai/docs/api-reference/limits) on the key as a backstop.
-- **Add auth** if the chatbot isn't meant to be public.
+- **Add auth** if the app isn't meant to be public.
 
 Both routes validate their request body, the chat route restricts models to [lib/models.ts](lib/models.ts), and the run route only reaches workflows the agent saved — but that bounds a single request, not overall volume.
 
@@ -192,7 +192,7 @@ the schemas and the step graph. It leaves out the runtime APIs
 
 ## Tool parts
 
-> `tool-create_workflow` and the `tool-skill*` parts render today. The `github_repo`, `web_search` and `ask_user` parts came with the template and are kept intact as a working reference for wiring more Mastra tools back in.
+> `tool-create_workflow`, `tool-get_workflow` and the `tool-skill*` parts render today. The `github_repo`, `web_search` and `ask_user` parts are unused, and kept intact as a working reference for wiring more Mastra tools back in.
 
 Assistant messages are a list of typed parts. [components/chat-message.tsx](components/chat-message.tsx) switches on `part.type` and delegates each one to a component in [components/parts/](components/parts):
 
