@@ -25,7 +25,14 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 
-export function Chat({ models }: { models: ChatModel[] }) {
+export function Chat({
+  models,
+  openWorkflowId,
+}: {
+  models: ChatModel[]
+  /** What the canvas is showing, so the agent can change it. May be null. */
+  openWorkflowId: string | null
+}) {
   const [model, setModel] = React.useState(models[0]?.id ?? "")
 
   // The canvas reads the same instance, so a workflow the agent builds shows up
@@ -41,6 +48,10 @@ export function Chat({ models }: { models: ChatModel[] }) {
     : (models[0]?.id ?? "")
 
   const isBusy = status === "submitted" || status === "streaming"
+
+  // Goes with every request: the model to run it on, and the workflow on the
+  // canvas. See app/api/chat/route.ts.
+  const body = { model: resolvedModel, workflowId: openWorkflowId }
 
   const lastMessage = messages.at(-1)
   const pendingQuestion =
@@ -67,12 +78,7 @@ export function Chat({ models }: { models: ChatModel[] }) {
             </EmptyHeader>
             <EmptyContent>
               <Suggestions
-                onSelect={(prompt) =>
-                  sendMessage(
-                    { text: prompt },
-                    { body: { model: resolvedModel } }
-                  )
-                }
+                onSelect={(prompt) => sendMessage({ text: prompt }, { body })}
               />
             </EmptyContent>
           </Empty>
@@ -110,7 +116,7 @@ export function Chat({ models }: { models: ChatModel[] }) {
                       tool: "ask_user",
                       toolCallId,
                       output: answer,
-                      options: { body: { model: resolvedModel } },
+                      options: { body },
                     })
                   }
                 />
@@ -133,9 +139,7 @@ export function Chat({ models }: { models: ChatModel[] }) {
           model={resolvedModel}
           onModelChange={setModel}
           isBusy={isBusy}
-          onSubmit={(text) =>
-            sendMessage({ text }, { body: { model: resolvedModel } })
-          }
+          onSubmit={(text) => sendMessage({ text }, { body })}
           onStop={() => stop()}
         />
       </div>

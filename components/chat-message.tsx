@@ -3,6 +3,7 @@
 import { type ChatUIMessage } from "@/tools"
 import { AskUserPart } from "@/components/parts/ask-user-part"
 import { CreateWorkflowPart } from "@/components/parts/create-workflow-part"
+import { GetWorkflowPart } from "@/components/parts/get-workflow-part"
 import { GithubRepoPart } from "@/components/parts/github-repo-part"
 import {
   SkillPart,
@@ -54,6 +55,8 @@ export function ChatMessage({
               return <WebSearchPart key={part.toolCallId} part={part} />
             case "tool-create_workflow":
               return <CreateWorkflowPart key={part.toolCallId} part={part} />
+            case "tool-get_workflow":
+              return <GetWorkflowPart key={part.toolCallId} part={part} />
             case "tool-skill":
               return <SkillPart key={part.toolCallId} part={part} />
             case "tool-skill_read":

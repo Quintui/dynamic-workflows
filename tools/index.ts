@@ -32,6 +32,18 @@ export type ChatTools = {
       issues?: string
     }
   }
+  /**
+   * Reads a saved definition back, which is how the agent changes a workflow
+   * whose definition isn't in the conversation.
+   */
+  get_workflow: {
+    input: { id: string }
+    output: {
+      found: boolean
+      definition?: WorkflowDefinition
+      available?: string[]
+    }
+  }
   /** Loads a skill's full instructions. Provided by Mastra. */
   skill: {
     input: { name: string }
@@ -102,6 +114,11 @@ export type WebSearchToolPart = Extract<
 export type CreateWorkflowToolPart = Extract<
   ChatMessagePart,
   { type: "tool-create_workflow" }
+>
+
+export type GetWorkflowToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-get_workflow" }
 >
 
 export type SkillToolPart = Extract<ChatMessagePart, { type: "tool-skill" }>

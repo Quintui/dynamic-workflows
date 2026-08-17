@@ -66,7 +66,7 @@ function WorkspacePanes({ models }: { models: ChatModel[] }) {
           <NewChatButton />
         </PanelHeader>
         <PanelContent>
-          <Chat models={models} />
+          <Chat models={models} openWorkflowId={selected?.id ?? null} />
         </PanelContent>
       </Panel>
     </div>

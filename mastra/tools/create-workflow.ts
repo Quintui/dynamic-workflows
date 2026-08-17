@@ -18,7 +18,7 @@ const jsonSchema = z.record(z.string(), z.any())
 export const createWorkflow = createTool({
   id: "create_workflow",
   description:
-    "Register a dynamic workflow definition and show it on the canvas. Call this once the definition is complete. Do not also paste the JSON into your reply — the canvas renders it. If it comes back with validation issues, fix them and call again with the same id.",
+    "Register a dynamic workflow definition and show it on the canvas. Call this once the definition is complete. Do not also paste the JSON into your reply — the canvas renders it. If it comes back with validation issues, fix them and call again with the same id. An id that already exists is replaced outright, graph included, so send the whole definition rather than only what changed.",
   inputSchema: z.object({
     id: z
       .string()
